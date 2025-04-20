@@ -7,7 +7,7 @@ Bu modül, uygulamanın Spotify tarzı özel arayüz bileşenlerini içerir.
 """
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, font
 import traceback
 import time
 import math
