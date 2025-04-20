@@ -8,13 +8,18 @@ Bu modül, uygulama ayarlarını kaydetmek ve yüklemek için fonksiyonlar içer
 
 import os
 import json
+import logging
+
+# Loglama
+logger = logging.getLogger("NetworkShieldPro.settings")
 
 # Ayarlar dosyasının yolu
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "arp_settings.json")
+APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SETTINGS_FILE = os.path.join(APP_DIR, "arp_settings.json")
 
 def load_settings():
     """
-    Ayarları dosyadan yükler, dosya yoksa boş sözlük döndürür.
+    Ayarları dosyadan yükler, dosya yoksa varsayılan ayarları döndürür.
     
     Returns:
         dict: Ayarlar sözlüğü
@@ -23,12 +28,31 @@ def load_settings():
         if os.path.exists(SETTINGS_FILE):
             with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
                 settings = json.load(f)
+            logger.debug(f"Ayarlar yüklendi: {settings}")
             return settings
         else:
-            return {}
+            logger.info("Ayarlar dosyası bulunamadı, varsayılan ayarlar kullanılıyor.")
+            # Varsayılan ayarlar
+            default_settings = {
+                "scan_interval": 24,
+                "auto_scan": True,
+                "dark_mode": False,
+                "notifications_enabled": True,
+                "periodic_scan_active": False
+            }
+            # Varsayılan ayarları kaydet
+            save_settings(default_settings)
+            return default_settings
     except Exception as e:
-        print(f"Ayarlar yüklenirken hata: {e}")
-        return {}
+        logger.error(f"Ayarlar yüklenirken hata: {e}")
+        # Hata durumunda en temel varsayılan ayarları döndür
+        return {
+            "scan_interval": 24,
+            "auto_scan": True,
+            "dark_mode": False,
+            "notifications_enabled": True,
+            "periodic_scan_active": False
+        }
 
 def save_settings(settings):
     """
@@ -41,7 +65,7 @@ def save_settings(settings):
         bool: İşlem başarılı ise True, aksi halde False
     """
     try:
-        print(f"Ayarlar kaydediliyor: {settings}")
+        logger.debug(f"Ayarlar kaydediliyor: {settings}")
         # Dosya dizininin varlığını kontrol et
         directory = os.path.dirname(SETTINGS_FILE)
         if not os.path.exists(directory):
@@ -49,10 +73,10 @@ def save_settings(settings):
             
         with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(settings, f, indent=4, ensure_ascii=False)
-        print(f"Ayarlar başarıyla kaydedildi: {SETTINGS_FILE}")
+        logger.info(f"Ayarlar başarıyla kaydedildi: {SETTINGS_FILE}")
         return True
     except Exception as e:
-        print(f"Ayarlar kaydedilirken hata: {e}")
+        logger.error(f"Ayarlar kaydedilirken hata: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -69,7 +93,9 @@ def get_setting(key, default=None):
         Ayar değeri veya default değeri
     """
     settings = load_settings()
-    return settings.get(key, default)
+    value = settings.get(key, default)
+    logger.debug(f"Ayar okundu: {key} = {value}")
+    return value
 
 def set_setting(key, value):
     """
@@ -84,6 +110,7 @@ def set_setting(key, value):
     """
     settings = load_settings()
     settings[key] = value
+    logger.debug(f"Ayar güncellendi: {key} = {value}")
     return save_settings(settings)
 
 def update_settings(settings_dict):
@@ -98,4 +125,22 @@ def update_settings(settings_dict):
     """
     settings = load_settings()
     settings.update(settings_dict)
+    logger.debug(f"Ayarlar toplu güncellendi: {settings_dict}")
     return save_settings(settings)
+
+def reset_settings():
+    """
+    Ayarları varsayılan değerlerine sıfırlar.
+    
+    Returns:
+        bool: İşlem başarılı ise True, aksi halde False
+    """
+    default_settings = {
+        "scan_interval": 24,
+        "auto_scan": True,
+        "dark_mode": False,
+        "notifications_enabled": True,
+        "periodic_scan_active": False
+    }
+    logger.info("Ayarlar varsayılan değerlere sıfırlanıyor")
+    return save_settings(default_settings)
