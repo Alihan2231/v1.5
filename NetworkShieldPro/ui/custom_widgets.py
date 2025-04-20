@@ -13,6 +13,10 @@ import time
 import math
 from ui.colors import THEME, get_status_color
 import random
+import logging
+
+# Loglama
+logger = logging.getLogger("NetworkShieldPro.custom_widgets")
 
 class RoundedFrame(tk.Canvas):
     """Yuvarlatılmış köşeli çerçeve"""
@@ -156,14 +160,10 @@ class SpotifyButton(tk.Canvas):
             self._draw_button()
     
     def _on_press(self, event):
-        """Tıklandığında"""
-        if self.command is not None:
-            try:
-                self.command()
-            except Exception as e:
-                print(f"Sidebar item tıklanması sırasında hata: {e}")
-                import traceback
-                traceback.print_exc()
+        """Tıklandığında aktif duruma geçer"""
+        if self.state != "disabled":
+            self.state = "active"
+            self._draw_button()
     
     def _on_release(self, event):
         """Tıklama bırakılınca fonksiyonu çalıştırır"""
@@ -171,7 +171,11 @@ class SpotifyButton(tk.Canvas):
             x, y = event.x, event.y
             if 0 <= x <= self.winfo_width() and 0 <= y <= self.winfo_height():
                 if self.command:
-                    self.command()
+                    try:
+                        self.command()
+                    except Exception as e:
+                        logger.error(f"Buton komutu çalıştırılırken hata: {e}")
+                        traceback.print_exc()
                 self.state = "hover"
             else:
                 self.state = "normal"
@@ -255,7 +259,7 @@ class CircularProgressbar(tk.Canvas):
 
 class ParticleAnimationCanvas(tk.Canvas):
     """Arka plan parçacık animasyonu"""
-    def __init__(self, parent, width, height, num_particles=30, **kwargs):
+    def __init__(self, parent, width=800, height=600, num_particles=30, **kwargs):
         super().__init__(parent, width=width, height=height, bg=THEME["background"], 
                          highlightthickness=0, **kwargs)
         self.width = width
@@ -340,234 +344,112 @@ class ParticleAnimationCanvas(tk.Canvas):
         
         # Sonraki kareyi planla
         if self.running:
-            self.after(50, self._animate)
+            self.after(40, self._animate)  # ~25 FPS
     
     def resize(self, width, height):
         """Canvas boyutunu değiştirir"""
         self.width = width
         self.height = height
-        self.configure(width=width, height=height)
-        
-        # Mevcut parçacıkları yeniden konumlandır
-        for particle in self.particles:
-            particle['x'] = random.randint(0, width)
-            particle['y'] = random.randint(0, height)
-
-class AnimatedChart(tk.Canvas):
-    """Animasyonlu çubuk grafik"""
-    def __init__(self, parent, width=400, height=200, title="Grafik", **kwargs):
-        super().__init__(parent, width=width, height=height, bg=THEME["card_background"], 
-                         highlightthickness=0, **kwargs)
-        self.title = title
-        self.data = []  # (etiket, değer, renk) üçlüleri
-        self.max_value = 0
-        self.animation_step = 0
-        self.animation_duration = THEME["animation_medium"]  # ms
-        
-        # Canvas çiz
-        self._draw_chart()
-        
-        # Boyut değiştiğinde yeniden çiz
-        self.bind("<Configure>", self._on_resize)
-    
-    def set_data(self, data):
-        """
-        Grafik verisini ayarlar ve animasyonu başlatır
-        data: [(etiket, değer, renk), ...] liste
-        """
-        self.data = data
-        self.max_value = max([value for _, value, _ in data]) if data else 1
-        
-        # Animasyonu başlat
-        self.animation_step = 0
-        self._animate()
-    
-    def _draw_chart(self):
-        """Grafik arka planını çizer"""
-        self.delete("all")
-        width, height = self.winfo_width(), self.winfo_height()
-        
-        # Boyutlar çok küçükse çizme
-        if width < 10 or height < 10:
-            return
-        
-        # Başlık
-        self.create_text(width/2, 15, text=self.title, 
-                         font=("Arial", 12, "bold"), fill=THEME["text_primary"], 
-                         anchor="n")
-        
-        # Arka plan çizgiler
-        for i in range(1, 5):
-            y = height - (i * height / 5) - 20
-            self.create_line(30, y, width-20, y, 
-                             fill=THEME["border"], dash=(2, 4), width=1)
-    
-    def _animate(self):
-        """Çubukları animasyonlu şekilde çizer"""
-        if self.animation_step <= self.animation_duration:
-            progress = self.animation_step / self.animation_duration
-            self._draw_bars(progress)
-            self.animation_step += 20  # Her karede 20ms ilerle
-            self.after(20, self._animate)
-        else:
-            self._draw_bars(1.0)  # Son hali
-    
-    def _draw_bars(self, progress):
-        """Çubukları belirli bir ilerleme oranına göre çizer"""
-        self.delete("bar")  # Önceki çubukları sil
-        
-        width, height = self.winfo_width(), self.winfo_height()
-        if not self.data:
-            return
-        
-        num_bars = len(self.data)
-        bar_width = min(60, (width - 60) / num_bars)
-        bar_spacing = min(20, (width - 60 - num_bars * bar_width) / (num_bars + 1))
-        
-        chart_top = 40
-        chart_bottom = height - 30
-        chart_height = chart_bottom - chart_top
-        
-        # Sıfıra bölme hatasını önlemek için
-        if self.max_value <= 0:
-            self.max_value = 1  # Eğer max_value sıfır veya negatifse, 1 olarak ayarla
-        
-        for i, (label, value, color) in enumerate(self.data):
-            # Çubuğun gerçek yüksekliğini hesapla
-            bar_height = (value / self.max_value) * chart_height * progress
-            
-            # Çubuğun sol üst köşesi
-            x0 = 40 + i * (bar_width + bar_spacing)
-            y0 = chart_bottom - bar_height
-            
-            # Çubuğun sağ alt köşesi
-            x1 = x0 + bar_width
-            y1 = chart_bottom
-            
-            # Çubuk çiz
-            self.create_rectangle(x0, y0, x1, y1, fill=color, outline="", tags="bar")
-            
-            # Etiket çiz
-            self.create_text(x0 + bar_width/2, chart_bottom + 15, 
-                           text=label, fill=THEME["text_secondary"], 
-                           font=("Arial", 8), tags="bar")
-            
-            # Değer çiz
-            if bar_height > 20:  # Çubuk yeterince büyükse değeri içine yaz
-                self.create_text(x0 + bar_width/2, y0 + 10, 
-                               text=str(value), fill=THEME["text_primary"], 
-                               font=("Arial", 9, "bold"), tags="bar")
-    
-    def _on_resize(self, event):
-        """Boyut değiştiğinde yeniden çizer"""
-        self._draw_chart()
-        self._draw_bars(1.0)  # Mevcut veriyi tamamen göster
+        self.config(width=width, height=height)
 
 class SidebarItem(tk.Frame):
-    """Kenar çubuğu öğesi"""
+    """Spotify tarzı kenar çubuğu öğesi"""
     def __init__(self, parent, icon, text, command=None, is_active=False, **kwargs):
-        super().__init__(parent, **kwargs)
-        self.parent = parent
-        self.icon_text = icon
-        self.label_text = text
+        super().__init__(parent, bg=THEME["sidebar_background"], 
+                         height=50, **kwargs)
         self.command = command
         self.is_active = is_active
         
-        self.config(
-            bg=THEME["sidebar_background"],
-            padx=0,
-            pady=0,
-            cursor="hand2"
-        )
+        # İkon ve metin
+        self.icon_label = tk.Label(self, text=icon, font=("Arial", 20), 
+                                  bg=THEME["sidebar_background"],
+                                  fg=THEME["primary"] if is_active else THEME["text_secondary"])
+        self.icon_label.pack(side=tk.LEFT, padx=(20, 10))
         
-        self._create_widgets()
+        self.text_label = tk.Label(self, text=text, font=("Arial", 12), 
+                                 bg=THEME["sidebar_background"],
+                                 fg=THEME["text_primary"] if is_active else THEME["text_secondary"])
+        self.text_label.pack(side=tk.LEFT, fill=tk.Y)
         
-        # Olayları bağla
+        # Sol kenar işaretleyicisi (aktif durumda)
+        self.indicator = tk.Canvas(self, width=4, height=50, bg=THEME["sidebar_background"], highlightthickness=0)
+        self.indicator.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 0))
+        
+        if is_active:
+            self._draw_active_indicator()
+        
+        # Etkileşimler
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
-        self.bind("<Button-1>", self._on_press)
-        
-        # Etiketler için de olayları bağla
-        self.icon_label.bind("<Enter>", self._on_enter)
-        self.icon_label.bind("<Leave>", self._on_leave)
-        self.icon_label.bind("<Button-1>", self._on_press)
-        
-        self.text_label.bind("<Enter>", self._on_enter)
-        self.text_label.bind("<Leave>", self._on_leave)
-        self.text_label.bind("<Button-1>", self._on_press)
-
-    def _create_widgets(self):
-        # İkon
-        self.icon_label = tk.Label(self, text=self.icon_text, font=("Arial", 16),
-                             bg=THEME["sidebar_background"])
-        self.icon_label.pack(side=tk.LEFT, padx=(15, 5), pady=8)
-        
-        # Metin
-        self.text_label = tk.Label(self, text=self.label_text, font=("Arial", 10),
-                             bg=THEME["sidebar_background"])
-        self.text_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=8)
-        
-        # Sol kenar göstergesi
-        self.indicator = tk.Frame(self, width=3, 
-                             bg=THEME["sidebar_background"])
-        self.indicator.place(x=0, y=0, relheight=1)
-        
-        # İlk renkleri güncelle
-        self._update_colors()
-
-    def _update_colors(self):
-        """Aktif duruma göre renkleri günceller"""
+        self.bind("<Button-1>", self._on_click)
+        self.icon_label.bind("<Button-1>", self._on_click)
+        self.text_label.bind("<Button-1>", self._on_click)
+        self.indicator.bind("<Button-1>", self._on_click)
+    
+    def _draw_active_indicator(self):
+        """Aktif durum göstergesini çizer"""
+        self.indicator.delete("all")
         if self.is_active:
-            self.config(bg=THEME["hover_light"])
-            self.icon_label.config(bg=THEME["hover_light"], fg=THEME["primary"])
-            self.text_label.config(bg=THEME["hover_light"], fg=THEME["primary"])
-            self.indicator.config(bg=THEME["primary"])  # Aktif gösterge ana renk
-        else:
-            self.config(bg=THEME["sidebar_background"])
-            self.icon_label.config(bg=THEME["sidebar_background"], fg=THEME["text_secondary"])
-            self.text_label.config(bg=THEME["sidebar_background"], fg=THEME["text_secondary"])
-            self.indicator.config(bg=THEME["sidebar_background"])  # İnaktif gösterge arka plan ile aynı
-
+            self.indicator.create_rectangle(0, 5, 4, 45, fill=THEME["primary"], outline="")
+    
     def _on_enter(self, event):
-        """Fare üzerine geldiğinde"""
+        """Üzerine gelince stilini değiştirir"""
         if not self.is_active:
-            self.config(bg=THEME["hover_light"])
-            self.icon_label.config(bg=THEME["hover_light"])
-            self.text_label.config(bg=THEME["hover_light"])
-            self.indicator.config(bg=THEME["hover_light"])
-
+            self.config(bg=THEME["card_background"])
+            self.icon_label.config(bg=THEME["card_background"])
+            self.text_label.config(bg=THEME["card_background"])
+            self.indicator.config(bg=THEME["card_background"])
+    
     def _on_leave(self, event):
-        """Fare üzerinden ayrıldığında"""
+        """Üzerinden ayrılınca stilini geri döndürür"""
         if not self.is_active:
             self.config(bg=THEME["sidebar_background"])
             self.icon_label.config(bg=THEME["sidebar_background"])
             self.text_label.config(bg=THEME["sidebar_background"])
             self.indicator.config(bg=THEME["sidebar_background"])
-
-    def _on_press(self, event):
-        """Tıklandığında"""
+    
+    def _on_click(self, event):
+        """Tıklandığında komutu çalıştırır"""
         if self.command:
-            self.command()
-
+            try:
+                self.command()
+            except Exception as e:
+                logger.error(f"Sidebar item tıklanması sırasında hata: {e}")
+                traceback.print_exc()
+    
     def set_active(self, active):
-        """Aktif durumu ayarlar"""
+        """Aktif durumu değiştirir"""
         self.is_active = active
-        self._update_colors()
-        if not active:
-            self._on_leave(None)
+        
+        if active:
+            self.text_label.config(fg=THEME["text_primary"])
+            self.icon_label.config(fg=THEME["primary"])
+            self._draw_active_indicator()
+            
+            # Aktif durumda hover efekti kaldır
+            self.config(bg=THEME["sidebar_background"])
+            self.icon_label.config(bg=THEME["sidebar_background"])
+            self.text_label.config(bg=THEME["sidebar_background"])
+            self.indicator.config(bg=THEME["sidebar_background"])
+        else:
+            self.text_label.config(fg=THEME["text_secondary"])
+            self.icon_label.config(fg=THEME["text_secondary"])
+            self.indicator.delete("all")
 
 class StatusBadge(tk.Canvas):
     """Durum rozeti"""
-    def __init__(self, parent, status="none", text="", width=120, height=28, **kwargs):
-        super().__init__(parent, width=width, height=height, bg=THEME["background"], 
-                         highlightthickness=0, **kwargs)
-        self.status = status
+    def __init__(self, parent, text="", status="none", width=80, height=24, 
+                 corner_radius=THEME["radius_small"], **kwargs):
+        super().__init__(parent, width=width, height=height, 
+                        bg=THEME["background"], highlightthickness=0, **kwargs)
         self.text = text
-        self.width_val = width
-        self.height_val = height
+        self.status = status
+        self.corner_radius = corner_radius
         
-        # Rozeti çiz
         self._draw_badge()
+        
+        # Boyut değiştiğinde yeniden çiz
+        self.bind("<Configure>", self._on_resize)
     
     def _draw_badge(self):
         """Durum rozetini çizer"""
@@ -575,19 +457,22 @@ class StatusBadge(tk.Canvas):
         width, height = self.winfo_width(), self.winfo_height()
         
         # Boyutlar çok küçükse çizme
-        if width < 10 or height < 10:
+        if width < 1 or height < 1:
             return
+        
+        # Köşe yarıçapı boyutlara göre ayarla
+        radius = min(self.corner_radius, height//2)
         
         # Durum rengini al
         color = get_status_color(self.status)
         
-        # Yuvarlatılmış dikdörtgen çiz
-        radius = height // 2
-        self.create_rounded_rectangle(0, 0, width, height, radius=radius, fill=color, outline="")
+        # Yuvarlatılmış dikdörtgen (arka plan)
+        self.create_rounded_rectangle(0, 0, width, height, radius=radius, 
+                                     fill=color, outline="")
         
-        # Metin çiz
+        # Metin
         self.create_text(width//2, height//2, text=self.text, 
-                         fill=THEME["text_primary"], font=("Arial", 10, "bold"))
+                        fill=THEME["text_primary"], font=("Arial", 10, "bold"))
     
     def create_rounded_rectangle(self, x1, y1, x2, y2, radius=20, **kwargs):
         """Yuvarlatılmış dikdörtgen oluşturur"""
@@ -607,19 +492,152 @@ class StatusBadge(tk.Canvas):
         ]
         return self.create_polygon(points, smooth=True, **kwargs)
     
-    def set_status(self, status, text=""):
-        """Durum ve metni günceller"""
+    def set_status(self, text, status="none"):
+        """Durum metnini ve rengini günceller"""
+        self.text = text
         self.status = status
-        if text:
-            self.text = text
         self._draw_badge()
     
-    def configure(self, **kwargs):
-        """Rozet özelliklerini yapılandırır"""
-        if "status" in kwargs:
-            self.status = kwargs.pop("status")
-        if "text" in kwargs:
-            self.text = kwargs.pop("text")
-        
-        super().configure(**kwargs)
+    def _on_resize(self, event):
+        """Boyut değiştiğinde yeniden çizer"""
         self._draw_badge()
+
+class AnimatedChart(tk.Canvas):
+    """Animasyonlu çubuk grafik"""
+    def __init__(self, parent, data=None, width=400, height=200, bar_width=30, 
+                 padding=40, animation_duration=THEME["animation_slow"], **kwargs):
+        super().__init__(parent, width=width, height=height, 
+                        bg=THEME["background"], highlightthickness=0, **kwargs)
+        self.data = data or []  # (etiket, değer, renk) tuple'larının listesi
+        self.bar_width = bar_width
+        self.padding = padding
+        self.animation_duration = animation_duration
+        self.current_values = []  # Animasyon için geçici değerler
+        
+        self._draw_chart()
+        
+        # Boyut değiştiğinde yeniden çiz
+        self.bind("<Configure>", self._on_resize)
+    
+    def _draw_chart(self):
+        """Çubuk grafiği çizer"""
+        self.delete("all")
+        width, height = self.winfo_width(), self.winfo_height()
+        
+        # Boyutlar çok küçükse çizme
+        if width < 1 or height < 1 or not self.data:
+            return
+        
+        # Y ekseni sınırları
+        max_value = max(entry[1] for entry in self.data) if self.data else 1
+        max_value = max(max_value, 1)  # Sıfıra bölünmeyi önle
+        
+        # Çizim alanı
+        chart_height = height - 2 * self.padding
+        chart_width = width - 2 * self.padding
+        
+        # Çubukların toplam genişliği
+        total_bar_width = len(self.data) * self.bar_width
+        # Çubuklar arası boşluk
+        spacing = (chart_width - total_bar_width) / (len(self.data) + 1)
+        
+        # X ekseni çizgisi
+        self.create_line(self.padding, height - self.padding, 
+                        width - self.padding, height - self.padding, 
+                        fill=THEME["border"], width=1)
+        
+        # Geçici değerler listesini ilk kez oluştur
+        if not self.current_values:
+            self.current_values = [0] * len(self.data)
+        
+        # Her çubuğu çiz
+        for i, (label, value, color) in enumerate(self.data):
+            # X pozisyonu
+            x = self.padding + spacing * (i + 1) + i * self.bar_width
+            
+            # Y ekseni değeri (şu anki animasyon değeri)
+            current_value = self.current_values[i]
+            bar_height = (current_value / max_value) * chart_height
+            
+            # Çubuğu çiz
+            self.create_rectangle(x, height - self.padding - bar_height, 
+                                x + self.bar_width, height - self.padding, 
+                                fill=color, outline="")
+            
+            # Etiketi çiz
+            self.create_text(x + self.bar_width / 2, height - self.padding + 15, 
+                           text=label, fill=THEME["text_secondary"], 
+                           font=("Arial", 10))
+            
+            # Değeri çiz
+            if current_value > 0:
+                self.create_text(x + self.bar_width / 2, height - self.padding - bar_height - 10, 
+                               text=str(int(current_value)), fill=THEME["text_primary"], 
+                               font=("Arial", 10, "bold"))
+    
+    def set_data(self, data):
+        """Grafik verilerini günceller ve animasyonu başlatır"""
+        old_data = self.data
+        self.data = data
+        
+        # Eğer önceki veri yoksa, animasyonsuz direkt çiz
+        if not old_data or not self.current_values:
+            self.current_values = [entry[1] for entry in data]
+            self._draw_chart()
+            return
+        
+        # Animasyon için hedef değerler
+        target_values = [entry[1] for entry in data]
+        
+        # Mevcut değerleri uygun uzunluğa getir
+        if len(self.current_values) < len(target_values):
+            self.current_values.extend([0] * (len(target_values) - len(self.current_values)))
+        elif len(self.current_values) > len(target_values):
+            self.current_values = self.current_values[:len(target_values)]
+        
+        # Animasyonu başlat
+        self._start_animation(target_values)
+    
+    def _start_animation(self, target_values):
+        """Çubuk animasyonunu başlatır"""
+        start_time = time.time()
+        duration = self.animation_duration / 1000  # saniye cinsinden
+        
+        def update_animation():
+            nonlocal start_time
+            
+            # Geçen süre
+            elapsed = time.time() - start_time
+            progress = min(elapsed / duration, 1.0)
+            
+            # Ease-out fonksiyonu
+            progress = 1 - (1 - progress) ** 2
+            
+            # Değerleri güncelle
+            all_done = True
+            for i, target in enumerate(target_values):
+                current = self.current_values[i]
+                new_value = current + (target - current) * progress
+                self.current_values[i] = new_value
+                
+                # Hedefe ulaşılıp ulaşılmadığını kontrol et
+                if abs(new_value - target) > 0.1:
+                    all_done = False
+            
+            # Grafiği güncelle
+            self._draw_chart()
+            
+            # Animasyon tamamlanmadıysa devam et
+            if not all_done and progress < 1:
+                self.after(16, update_animation)  # ~60 FPS
+            else:
+                # Son duruma getir
+                self.current_values = target_values.copy()
+                self._draw_chart()
+        
+        # Animasyonu başlat
+        update_animation()
+    
+    def _on_resize(self, event):
+        """Boyut değiştiğinde yeniden çizer"""
+        self._draw_chart()
