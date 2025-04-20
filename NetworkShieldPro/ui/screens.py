@@ -708,12 +708,15 @@ class ThreatAnalysisScreen(BaseScreen):
         # Tehditler için kaydırılabilir alan
         self.threats_canvas = tk.Canvas(self.threats_card, bg=THEME["card_background"],
                                     highlightthickness=0)
-        self.threats_canvas.place(x=20, y=60, right=40, bottom=20)
+        self.threats_canvas.place(x=20, y=60, 
+                            width=self.threats_card.winfo_width()-60, 
+                            height=self.threats_card.winfo_height()-80)
         
         # Kaydırma çubuğu
         scrollbar = ttk.Scrollbar(self.threats_card, orient="vertical", 
                                command=self.threats_canvas.yview)
-        scrollbar.place(relx=1, y=60, bottom=20, anchor="ne", width=20)
+        scrollbar.place(relx=1, y=60, height=self.threats_card.winfo_height()-80, 
+                     anchor="ne", width=20)
         
         self.threats_canvas.configure(yscrollcommand=scrollbar.set)
         
@@ -1062,7 +1065,9 @@ class HistoryScreen(BaseScreen):
         
         # Tablo başlık çerçevesi
         header_frame = tk.Frame(self.history_card, bg=THEME["card_background"])
-        header_frame.place(x=20, y=60, right=20, height=30)
+        header_frame.place(x=20, y=60, 
+                       width=self.history_card.winfo_width()-40, 
+                       height=30)
         
         # Tablo başlıkları
         header_columns = [
@@ -1083,12 +1088,15 @@ class HistoryScreen(BaseScreen):
         # Geçmiş listesi için kaydırılabilir çerçeve
         self.history_canvas = tk.Canvas(self.history_card, bg=THEME["card_background"],
                                     highlightthickness=0)
-        self.history_canvas.place(x=20, y=100, right=40, bottom=20)
+        self.history_canvas.place(x=20, y=100, 
+                              width=self.history_card.winfo_width()-60, 
+                              height=self.history_card.winfo_height()-120)
         
         # Kaydırma çubuğu
         scrollbar = ttk.Scrollbar(self.history_card, orient="vertical", 
                                command=self.history_canvas.yview)
-        scrollbar.place(relx=1, y=100, bottom=20, anchor="ne", width=20)
+        scrollbar.place(relx=1, y=100, height=self.history_card.winfo_height()-120, 
+                     anchor="ne", width=20)
         
         self.history_canvas.configure(yscrollcommand=scrollbar.set)
         
@@ -1293,7 +1301,9 @@ class SettingsScreen(BaseScreen):
         
         # Ayarlar içeriği
         settings_frame = tk.Frame(self.general_card, bg=THEME["card_background"])
-        settings_frame.place(x=20, y=60, right=20, height=170)
+        settings_frame.place(x=20, y=60, 
+                          width=self.general_card.winfo_width()-40, 
+                          height=170)
         
         # Periyodik tarama ayarı
         interval_frame = tk.Frame(settings_frame, bg=THEME["card_background"], height=40)
@@ -1376,7 +1386,9 @@ class SettingsScreen(BaseScreen):
         
         # Uygulama bilgileri
         about_frame = tk.Frame(self.about_card, bg=THEME["card_background"])
-        about_frame.place(x=20, y=60, right=20, height=170)
+        about_frame.place(x=20, y=60, 
+                        width=self.about_card.winfo_width()-40, 
+                        height=170)
         
         app_name = tk.Label(about_frame, text="NetworkShieldPro", 
                         font=("Arial", 16, "bold"), bg=THEME["card_background"], 
@@ -1633,20 +1645,33 @@ class SpotifyARPApp:
     
     def _create_screens(self):
         """Uygulama ekranlarını oluşturur"""
-        # Gösterge Paneli
-        self.screens["dashboard"] = DashboardScreen(self.background_canvas, self)
-        
-        # Ağ Taraması
-        self.screens["scan"] = ScanScreen(self.background_canvas, self)
-        
-        # Tehdit Analizi
-        self.screens["threats"] = ThreatAnalysisScreen(self.background_canvas, self)
-        
-        # Geçmiş
-        self.screens["history"] = HistoryScreen(self.background_canvas, self)
-        
-        # Ayarlar
-        self.screens["settings"] = SettingsScreen(self.background_canvas, self)
+        try:
+            # Gösterge Paneli
+            self.screens["dashboard"] = DashboardScreen(self.background_canvas, self)
+            print("Dashboard ekranı oluşturuldu")
+            
+            # Ağ Taraması
+            self.screens["scan"] = ScanScreen(self.background_canvas, self)
+            print("Scan ekranı oluşturuldu")
+            
+            # Tehdit Analizi
+            self.screens["threats"] = ThreatAnalysisScreen(self.background_canvas, self)
+            print("Threats ekranı oluşturuldu")
+            
+            # Geçmiş
+            self.screens["history"] = HistoryScreen(self.background_canvas, self)
+            print("History ekranı oluşturuldu")
+            
+            # Ayarlar
+            self.screens["settings"] = SettingsScreen(self.background_canvas, self)
+            print("Settings ekranı oluşturuldu")
+            
+            # Oluşturulan ekranları kontrol et ve günlükle
+            print(f"Oluşturulan ekranlar: {list(self.screens.keys())}")
+        except Exception as e:
+            print(f"Ekran oluşturma hatası: {e}")
+            import traceback
+            traceback.print_exc()
     
     def show_screen(self, screen_id):
         """Belirtilen ekranı gösterir"""
