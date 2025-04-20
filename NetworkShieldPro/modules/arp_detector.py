@@ -11,11 +11,14 @@ import subprocess
 import socket
 import struct
 import time
-import subprocess
 import re
 import os
 import threading
+import logging
 from collections import defaultdict
+
+# Loglama
+logger = logging.getLogger("NetworkShieldPro.arp_detector")
 
 # MAC adreslerini düzgün formatta gösterme
 def format_mac(mac_bytes):
@@ -68,11 +71,12 @@ def get_arp_table():
                         if mac != "(incomplete)":  # Eksik kayıtları atla
                             arp_entries.append({"ip": ip, "mac": mac, "interface": interface})
         
+        logger.debug(f"ARP tablosu alındı: {len(arp_entries)} kayıt")
         return arp_entries
         
     except Exception as e:
-        print(f"ARP tablosu alınırken hata oluştu: {e}")
-        print("Test verileri kullanılıyor.")
+        logger.error(f"ARP tablosu alınırken hata oluştu: {e}")
+        logger.warning("Test verileri kullanılıyor.")
         
         # Normal ve şüpheli durumları içeren test verileri oluştur
         test_entries = [
@@ -125,28 +129,38 @@ def get_default_gateway():
                             parts = line.split()
                             if len(parts) >= 2:
                                 gateway_mac = parts[1].replace('-', ':')
+                                logger.debug(f"Gateway bulundu: IP={gateway_ip}, MAC={gateway_mac}")
                                 return {"ip": gateway_ip, "mac": gateway_mac}
                 except Exception as e:
-                    print(f"ARP tablosunda gateway MAC adresi aranırken hata: {e}")
+                    logger.error(f"ARP tablosunda gateway MAC adresi aranırken hata: {e}")
                     
                 # MAC bulunamadıysa sadece IP ile devam et
-                return {"ip": gateway_ip, "mac": "00:00:00:00:00:00"}
+                logger.warning(f"Gateway MAC adresi bulunamadı, sadece IP kullanılıyor: {gateway_ip}")
+                return {"ip": gateway_ip, "mac": "Bilinmiyor"}
+            else:
+                logger.warning("Gateway IP adresi bulunamadı")
+                return {"ip": "Bilinmiyor", "mac": "Bilinmiyor"}
         else:
             # Linux üzerinde çalışılıyorsa
-            result = subprocess.check_output('ip route show default', shell=True, encoding='utf-8')
-            gateway_ip = result.split('default via ')[1].split(' ')[0]
-            
-            # MAC adresini bul
-            result = subprocess.check_output(f'ip neigh show {gateway_ip}', shell=True, encoding='utf-8')
-            gateway_mac = result.split('lladdr ')[1].split(' ')[0]
-            
-            return {"ip": gateway_ip, "mac": gateway_mac}
+            try:
+                result = subprocess.check_output('ip route show default', shell=True, encoding='utf-8')
+                gateway_ip = result.split('default via ')[1].split(' ')[0]
+                
+                # MAC adresini bul
+                result = subprocess.check_output(f'ip neigh show {gateway_ip}', shell=True, encoding='utf-8')
+                gateway_mac = result.split('lladdr ')[1].split(' ')[0]
+                
+                logger.debug(f"Gateway bulundu: IP={gateway_ip}, MAC={gateway_mac}")
+                return {"ip": gateway_ip, "mac": gateway_mac}
+            except Exception as e:
+                logger.error(f"Linux'ta gateway bilgisi alınırken hata: {e}")
+                return {"ip": "Bilinmiyor", "mac": "Bilinmiyor"}
             
     except Exception as e:
-        print(f"Varsayılan ağ geçidi bulunurken hata oluştu: {e}")
+        logger.error(f"Varsayılan ağ geçidi bulunurken hata oluştu: {e}")
         
     # Hata durumunda test verisi dön
-    print("Test ağ geçidi verisi kullanılıyor.")
+    logger.warning("Test ağ geçidi verisi kullanılıyor.")
     return {"ip": "192.168.1.1", "mac": "aa:bb:cc:dd:ee:ff"}
 
 # ARP spoofing tespiti
@@ -232,8 +246,6 @@ def detect_arp_spoofing(arp_table):
     
     return suspicious_entries
 
-from modules.settings import load_settings, save_settings, get_setting, set_setting, update_settings
-
 class ARPScanner:
     def __init__(self, callback=None):
         self.callback = callback
@@ -242,14 +254,17 @@ class ARPScanner:
         self.periodic_running = False
         self.periodic_thread = None
         
+        # Loglama
+        self.logger = logging.getLogger("NetworkShieldPro.ARPScanner")
+        
         # Ayarlardan tarama aralığını yüklemeyi dene
         try:
             from modules.settings import get_setting
             saved_interval = get_setting("scan_interval", 24)
             self.scan_interval = saved_interval
-            print(f"Kaydedilmiş tarama aralığı yüklendi: {saved_interval} saat")
+            self.logger.info(f"Kaydedilmiş tarama aralığı yüklendi: {saved_interval} saat")
         except Exception as e:
-            print(f"Ayarlar yüklenirken hata, varsayılan değer kullanılıyor: {e}")
+            self.logger.error(f"Ayarlar yüklenirken hata, varsayılan değer kullanılıyor: {e}")
             self.scan_interval = 24  # saat
         
         self.scan_history = []  # Tarama geçmişi
@@ -259,35 +274,43 @@ class ARPScanner:
         try:
             from modules.settings import get_setting
             if get_setting("periodic_scan_active", False):
-                print("Önceki oturumdan periyodik tarama aktif ayarı bulundu.")
-                # Bu direkt olarak başlatma işlemi değil, sadece bir log
+                self.logger.info("Önceki oturumdan periyodik tarama aktif ayarı bulundu.")
         except Exception as e:
-            print(f"Periyodik tarama durumu yüklenirken hata: {e}")
+            self.logger.error(f"Periyodik tarama durumu yüklenirken hata: {e}")
     
     def start_scan(self):
         """Tek seferlik tarama başlatır"""
-        self.running = True
-        if self.scan_thread and self.scan_thread.is_alive():
+        if self.running:
+            self.logger.warning("Tarama zaten çalışıyor")
             return False
         
-        self.scan_thread = threading.Thread(target=self._scan_thread, daemon=True)
+        self.running = True
+        self.stop_event.clear()  # Durdurma sinyalini temizle
+        
+        # Tarama işlemini ayrı bir thread'de başlat
+        # daemon=False olarak ayarla ki uygulama kapanırken thread'i öldürmesin
+        # böylece tarama sağlıklı şekilde tamamlanabilir
+        self.scan_thread = threading.Thread(target=self._scan_thread, daemon=False)
         self.scan_thread.start()
+        
+        self.logger.info("Tarama başlatıldı")
         return True
     
     def start_periodic_scan(self, interval_hours=None):
         """Periyodik tarama başlatır"""
-        if interval_hours:
+        if interval_hours is not None:
             self.scan_interval = interval_hours
             
             # Tarama aralığını ayarlara kaydet
             try:
                 from modules.settings import set_setting
                 set_setting("scan_interval", interval_hours)
-                print(f"Tarama aralığı kaydedildi: {interval_hours} saat")
+                self.logger.info(f"Tarama aralığı kaydedildi: {interval_hours} saat")
             except Exception as e:
-                print(f"Tarama aralığı kaydedilirken hata: {e}")
+                self.logger.error(f"Tarama aralığı kaydedilirken hata: {e}")
         
         if self.periodic_running:
+            self.logger.warning("Periyodik tarama zaten çalışıyor")
             return False
         
         self.periodic_running = True
@@ -297,102 +320,160 @@ class ARPScanner:
         try:
             from modules.settings import set_setting
             set_setting("periodic_scan_active", True)
-            print("Periyodik tarama durumu kaydedildi (aktif)")
+            self.logger.info("Periyodik tarama durumu kaydedildi (aktif)")
         except Exception as e:
-            print(f"Periyodik tarama durumu kaydedilirken hata: {e}")
+            self.logger.error(f"Periyodik tarama durumu kaydedilirken hata: {e}")
         
-        self.periodic_thread = threading.Thread(target=self._periodic_thread, daemon=True)
+        # Periyodik taramayı ayrı bir thread'de başlat
+        # daemon=False olarak ayarla ki uygulama kapanırken thread'i öldürmesin
+        self.periodic_thread = threading.Thread(target=self._periodic_scan_thread, daemon=False)
         self.periodic_thread.start()
+        
+        self.logger.info(f"Periyodik tarama başlatıldı (Her {self.scan_interval} saatte bir)")
         return True
     
     def stop_periodic_scan(self):
         """Periyodik taramayı durdurur"""
         if not self.periodic_running:
-            return False  # Zaten aktif değil
+            self.logger.warning("Periyodik tarama zaten çalışmıyor")
+            return False
         
         self.periodic_running = False
-        self.stop_event.set()  # Thread'e durma sinyali gönder
+        self.stop_event.set()  # Durdurma sinyali gönder
         
         # Periyodik tarama durumunu ayarlara kaydet
         try:
             from modules.settings import set_setting
             set_setting("periodic_scan_active", False)
-            print("Periyodik tarama durumu kaydedildi (kapalı)")
+            self.logger.info("Periyodik tarama durumu kaydedildi (pasif)")
         except Exception as e:
-            print(f"Periyodik tarama durumu kaydedilirken hata: {e}")
+            self.logger.error(f"Periyodik tarama durumu kaydedilirken hata: {e}")
         
+        # Thread halen çalışıyorsa sonlanmasını bekle
         if self.periodic_thread and self.periodic_thread.is_alive():
-            self.periodic_thread.join(timeout=1.0)  # Thread'in durmasını bekle (max 1 saniye)
+            self.logger.info("Periyodik tarama thread'i sonlanana kadar bekleniyor...")
+            # Thread'i uygun şekilde sonlana kadar bekle (timeout ile)
+            self.periodic_thread.join(timeout=2.0)
+            
+            if self.periodic_thread.is_alive():
+                self.logger.warning("Periyodik tarama thread'i sonlanmadı, devam ediliyor")
+            else:
+                self.logger.info("Periyodik tarama thread'i başarıyla sonlandı")
         
+        self.logger.info("Periyodik tarama durduruldu")
         return True
     
+    def stop(self):
+        """Tüm tarama işlemlerini durdurur"""
+        # Periyodik taramayı durdur
+        if self.periodic_running:
+            self.stop_periodic_scan()
+        
+        # Tek seferlik taramayı durdur
+        if self.running:
+            self.running = False
+            self.stop_event.set()  # Durdurma sinyali gönder
+            
+            # Thread halen çalışıyorsa sonlanmasını bekle
+            if self.scan_thread and self.scan_thread.is_alive():
+                self.logger.info("Tarama thread'i sonlanana kadar bekleniyor...")
+                self.scan_thread.join(timeout=1.0)
+                
+                if self.scan_thread.is_alive():
+                    self.logger.warning("Tarama thread'i sonlanmadı, devam ediliyor")
+                else:
+                    self.logger.info("Tarama thread'i başarıyla sonlandı")
+        
+        self.logger.info("Tüm tarama işlemleri durduruldu")
+    
     def _scan_thread(self):
-        """Arka planda tarama yapar"""
+        """Tarama işlemini gerçekleştiren thread"""
         try:
+            self.logger.info("Tarama başlıyor...")
+            
+            # Tarama başlangıç zamanı
+            start_time = time.time()
+            
             # ARP tablosunu al
             arp_table = get_arp_table()
             
-            # Varsayılan ağ geçidini bul
+            # ARP tablosundan gateway bilgisini al
             gateway = get_default_gateway()
             
-            # ARP spoofing tespiti
-            suspicious_entries = detect_arp_spoofing(arp_table)
+            # ARP spoofing tespiti yap
+            suspicious = detect_arp_spoofing(arp_table)
             
-            # Tehlike seviyesini belirle
-            threat_level = "none"
-            for entry in suspicious_entries:
-                # Sadece bilgi değil gerçek şüpheli durumlar
-                if entry.get("threat_level") == "high":
-                    threat_level = "high"
-                    break
-                elif entry.get("threat_level") == "medium" and threat_level != "high":
-                    threat_level = "medium"
+            # Tehdit seviyesini belirle
+            threat_level = "none"  # Varsayılan olarak tehdit yok
             
-            # Sonuçları oluştur
+            # Yüksek tehdit varsa seviyeyi yükselt
+            if any(entry.get("threat_level") == "high" for entry in suspicious):
+                threat_level = "high"
+            # Orta seviye tehdit varsa ve henüz yüksek seviye tespit edilmediyse
+            elif any(entry.get("threat_level") == "medium" for entry in suspicious):
+                threat_level = "medium"
+            
+            # Sonuçları hazırla
             result = {
                 "timestamp": time.time(),
                 "arp_table": arp_table,
                 "gateway": gateway,
-                "suspicious_entries": suspicious_entries,
-                "threat_level": threat_level
+                "suspicious_entries": suspicious,
+                "threat_level": threat_level,
+                "duration": time.time() - start_time
             }
             
-            # Tarama geçmişine ekle (en fazla 100 kayıt tut)
+            # Geçmişe ekle (en fazla son 100 taramayı tut)
             self.scan_history.append(result)
             if len(self.scan_history) > 100:
                 self.scan_history = self.scan_history[-100:]
             
-            # Callback fonksiyonu çağır
+            # Callback fonksiyonu varsa çağır
             if self.callback:
                 self.callback(result)
             
-            self.running = False
-            return result
-            
+            self.logger.info(f"Tarama tamamlandı. Tehdit seviyesi: {threat_level}")
         except Exception as e:
-            error_result = {
-                "timestamp": time.time(),
-                "error": str(e),
-                "threat_level": "unknown"
-            }
-            if self.callback:
-                self.callback(error_result)
-            
+            self.logger.error(f"Tarama sırasında hata: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
             self.running = False
-            return error_result
     
-    def _periodic_thread(self):
-        """Periyodik tarama arka plan thread'i"""
-        while self.periodic_running:
-            # Tarama başlat
-            self._scan_thread()
+    def _periodic_scan_thread(self):
+        """Periyodik tarama işlemini gerçekleştiren thread"""
+        try:
+            self.logger.info(f"Periyodik tarama başlatıldı (Her {self.scan_interval} saatte bir)")
             
-            # Seçilen saat değerine göre saniye hesapla
-            interval_seconds = self.scan_interval * 3600  # Saat başına 3600 saniye
+            while self.periodic_running and not self.stop_event.is_set():
+                # Hemen bir tarama başlat
+                if not self.running:  # Eğer halihazırda bir tarama çalışmıyorsa
+                    self.start_scan()
+                
+                # Bir sonraki taramaya kadar bekle
+                # Her 10 saniyede bir durdurma sinyalini kontrol et
+                interval_seconds = self.scan_interval * 3600  # saat -> saniye
+                wait_start = time.time()
+                
+                while time.time() - wait_start < interval_seconds:
+                    if self.stop_event.is_set() or not self.periodic_running:
+                        break
+                    time.sleep(10)  # 10 saniye bekle ve kontrol et
             
-            # Bekleme döngüsü (her 10 saniyede bir durdurma sinyalini kontrol eder)
-            for _ in range(int(interval_seconds / 10)):
-                if self.stop_event.wait(10):  # 10 saniye bekle veya sinyal gelirse çık
-                    return  # Döngüden çık ve thread'i sonlandır
-                if not self.periodic_running:
-                    return
+            self.logger.info("Periyodik tarama döngüsü sona erdi")
+        except Exception as e:
+            self.logger.error(f"Periyodik tarama sırasında hata: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            self.periodic_running = False
+    
+    def get_last_scan_result(self):
+        """En son tarama sonucunu döndürür"""
+        if self.scan_history:
+            return self.scan_history[-1]
+        return None
+    
+    def get_scan_history(self):
+        """Tarama geçmişini döndürür"""
+        return self.scan_history
