@@ -2,123 +2,142 @@
 # -*- coding: utf-8 -*-
 
 """
-Spotify temalı renkler ve stil sabitleri
-Bu modül, uygulamanın genel renk şemasını ve stil sabitlerini tanımlar.
+Renk Teması ve Stil Sabitlerini İçeren Modül
+Bu modül, uygulama genelinde kullanılan renk ve stil sabitlerini içerir.
 """
 
-# Ana renkler
-BACKGROUND = "#121212"  # Ana arka plan rengi
-CARD_BACKGROUND = "#181818"  # Kart arka plan rengi
-SIDEBAR_BACKGROUND = "#000000"  # Kenar çubuğu arka plan rengi
-PRIMARY = "#1DB954"  # Spotify yeşili - ana vurgu rengi
-SECONDARY = "#535353"  # İkincil vurgu rengi
-
-# Metin renkleri
-TEXT_PRIMARY = "#FFFFFF"  # Beyaz ana metin
-TEXT_SECONDARY = "#B3B3B3"  # Gri ikincil metin
-TEXT_DISABLED = "#707070"  # Devre dışı metin
-
-# Uyarı renkleri
-WARNING = "#F59B23"  # Turuncu uyarı
-ERROR = "#E61E32"  # Kırmızı hata
-SUCCESS = "#1DB954"  # Yeşil başarı
-
-# Kenarlık renkleri
-BORDER = "#333333"  # Kenarlık rengi
-
-# Hover ve Active durumları
-HOVER_LIGHT = "#282828"  # Üzerine gelindiğinde arka plan (açık)
-HOVER_PRIMARY = "#1ED760"  # Üzerine gelindiğinde ana renk
-ACTIVE_PRIMARY = "#1AA64C"  # Tıklandığında ana renk
-
-# Metin boyutları
-FONT_LARGE = 20  # Büyük metin
-FONT_MEDIUM = 14  # Orta metin
-FONT_SMALL = 12  # Küçük metin
-FONT_TINY = 10  # Çok küçük metin
-
-# Yuvarlatılmış köşe yarıçapları
-RADIUS_SMALL = 4  # Küçük yuvarlatılmış köşe
-RADIUS_MEDIUM = 8  # Orta yuvarlatılmış köşe
-RADIUS_LARGE = 16  # Büyük yuvarlatılmış köşe
-
-# Dolgular
-PADDING_SMALL = 8  # Küçük dolgu
-PADDING_MEDIUM = 16  # Orta dolgu
-PADDING_LARGE = 24  # Büyük dolgu
-
-# Animasyon süresi (milisaniye)
-ANIMATION_FAST = 150  # Hızlı animasyon
-ANIMATION_MEDIUM = 300  # Orta animasyon
-ANIMATION_SLOW = 500  # Yavaş animasyon
-
-# Ek özellikler
-ICON_SMALL = 16  # Küçük simge boyutu
-ICON_MEDIUM = 24  # Orta simge boyutu
-ICON_LARGE = 32  # Büyük simge boyutu
-
-# Tüm renkleri ve stilleri içeren sözlük
+# Temel Spotify tarzı renk şeması
 THEME = {
     # Ana renkler
-    "background": BACKGROUND,
-    "card_background": CARD_BACKGROUND,
-    "sidebar_background": SIDEBAR_BACKGROUND,
-    "primary": PRIMARY,
-    "secondary": SECONDARY,
+    "background": "#121212",  # Koyu arka plan
+    "card_background": "#181818",  # Kart arka planı
+    "sidebar_background": "#000000",  # Kenar çubuğu arka planı
+    
+    # Vurgu renkleri
+    "primary": "#1DB954",  # Spotify yeşili
+    "secondary": "#535353",  # Gri ton
+    "tertiary": "#B3B3B3",  # Açık gri
+    
+    # Durum renkleri
+    "success": "#1DB954",  # Yeşil (başarı)
+    "warning": "#F9A825",  # Sarı (uyarı)
+    "error": "#E53935",  # Kırmızı (hata)
+    "info": "#2196F3",  # Mavi (bilgi)
     
     # Metin renkleri
-    "text_primary": TEXT_PRIMARY,
-    "text_secondary": TEXT_SECONDARY,
-    "text_disabled": TEXT_DISABLED,
+    "text_primary": "#FFFFFF",  # Beyaz
+    "text_secondary": "#B3B3B3",  # Gri
+    "text_tertiary": "#6F6F6F",  # Koyu gri
+    "text_disabled": "#535353",  # Pasif metin
     
-    # Uyarı renkleri
-    "warning": WARNING,
-    "error": ERROR,
-    "success": SUCCESS,
+    # Etkileşim durumları
+    "hover_primary": "#1ED760",  # Yeşil hover durumu
+    "active_primary": "#169C46",  # Yeşil aktif/basılı durumu
+    "hover_secondary": "#636363",  # Gri hover durumu
+    "active_secondary": "#434343",  # Gri aktif/basılı durumu
     
-    # Kenarlık renkleri
-    "border": BORDER,
+    # Kenar çizgisi
+    "border": "#333333",  # Kenar çizgisi
     
-    # Hover ve Active durumları
-    "hover_light": HOVER_LIGHT,
-    "hover_primary": HOVER_PRIMARY,
-    "active_primary": ACTIVE_PRIMARY,
+    # Yarıçap değerleri
+    "radius_small": 4,  # Küçük köşe yuvarlaklığı
+    "radius_medium": 8,  # Orta köşe yuvarlaklığı
+    "radius_large": 16,  # Büyük köşe yuvarlaklığı
     
-    # Metin boyutları
-    "font_large": FONT_LARGE,
-    "font_medium": FONT_MEDIUM,
-    "font_small": FONT_SMALL,
-    "font_tiny": FONT_TINY,
+    # Animasyon süreleri (ms)
+    "animation_fast": 150,  # Hızlı animasyon
+    "animation_medium": 300,  # Orta hızda animasyon
+    "animation_slow": 600,  # Yavaş animasyon
     
-    # Yuvarlatılmış köşe yarıçapları
-    "radius_small": RADIUS_SMALL,
-    "radius_medium": RADIUS_MEDIUM,
-    "radius_large": RADIUS_LARGE,
+    # Gölge efektleri
+    "shadow": "0 4px 8px rgba(0, 0, 0, 0.3)",  # Standart gölge
+    "shadow_large": "0 8px 16px rgba(0, 0, 0, 0.5)",  # Büyük gölge
     
-    # Dolgular
-    "padding_small": PADDING_SMALL,
-    "padding_medium": PADDING_MEDIUM,
-    "padding_large": PADDING_LARGE,
-    
-    # Animasyon süresi
-    "animation_fast": ANIMATION_FAST,
-    "animation_medium": ANIMATION_MEDIUM,
-    "animation_slow": ANIMATION_SLOW,
-    
-    # Ek özellikler
-    "icon_small": ICON_SMALL,
-    "icon_medium": ICON_MEDIUM,
-    "icon_large": ICON_LARGE,
+    # Özel renkler (uygulamaya özgü)
+    "network_secure": "#1DB954",  # Güvenli ağ
+    "network_warning": "#F9A825",  # Şüpheli ağ
+    "network_danger": "#E53935",  # Tehlikeli ağ
+    "network_unknown": "#757575",  # Bilinmeyen/taranmamış ağ
 }
 
-# Durumlar için renk getirme fonksiyonu
-def get_status_color(threat_level):
-    """Tehdit seviyesine göre renk döndürür"""
-    if threat_level == "high":
-        return ERROR
-    elif threat_level == "medium":
-        return WARNING
-    elif threat_level == "none":
-        return SUCCESS
-    else:
-        return SECONDARY
+# Renk temaları (koyu/açık)
+THEMES = {
+    "dark": THEME,
+    "light": {
+        # Ana renkler
+        "background": "#FFFFFF",  # Beyaz arka plan
+        "card_background": "#F5F5F5",  # Açık gri kart arka planı
+        "sidebar_background": "#EEEEEE",  # Kenar çubuğu arka planı
+        
+        # Vurgu renkleri (aynı)
+        "primary": "#1DB954",  # Spotify yeşili
+        "secondary": "#BDBDBD",  # Gri ton
+        "tertiary": "#757575",  # Koyu gri
+        
+        # Durum renkleri (aynı)
+        "success": "#1DB954",  # Yeşil (başarı)
+        "warning": "#F9A825",  # Sarı (uyarı)
+        "error": "#E53935",  # Kırmızı (hata)
+        "info": "#2196F3",  # Mavi (bilgi)
+        
+        # Metin renkleri (ters)
+        "text_primary": "#212121",  # Siyah
+        "text_secondary": "#616161",  # Koyu gri
+        "text_tertiary": "#9E9E9E",  # Açık gri
+        "text_disabled": "#BDBDBD",  # Pasif metin
+        
+        # Etkileşim durumları
+        "hover_primary": "#1ED760",  # Yeşil hover durumu
+        "active_primary": "#169C46",  # Yeşil aktif/basılı durumu
+        "hover_secondary": "#D5D5D5",  # Gri hover durumu
+        "active_secondary": "#C2C2C2",  # Gri aktif/basılı durumu
+        
+        # Kenar çizgisi
+        "border": "#E0E0E0",  # Kenar çizgisi
+        
+        # Yuvarlaklık değerleri (aynı)
+        "radius_small": 4,
+        "radius_medium": 8,
+        "radius_large": 16,
+        
+        # Animasyon süreleri (aynı)
+        "animation_fast": 150,
+        "animation_medium": 300,
+        "animation_slow": 600,
+        
+        # Gölge efektleri
+        "shadow": "0 2px 4px rgba(0, 0, 0, 0.1)",
+        "shadow_large": "0 4px 8px rgba(0, 0, 0, 0.2)",
+        
+        # Özel renkler (aynı)
+        "network_secure": "#1DB954",
+        "network_warning": "#F9A825",
+        "network_danger": "#E53935",
+        "network_unknown": "#9E9E9E",
+    }
+}
+
+def get_status_color(status):
+    """
+    Durum bilgisine göre uygun rengi döndürür.
+    
+    Args:
+        status (str): Durum metni (success, warning, error, info, vb.)
+        
+    Returns:
+        str: Renk kodu
+    """
+    status_map = {
+        "success": THEME["success"],
+        "warning": THEME["warning"],
+        "error": THEME["error"],
+        "info": THEME["info"],
+        "none": THEME["text_secondary"],
+        "high": THEME["error"],
+        "medium": THEME["warning"],
+        "low": THEME["info"],
+        "secure": THEME["success"],
+        "unknown": THEME["text_tertiary"]
+    }
+    
+    return status_map.get(status.lower(), THEME["text_primary"])
