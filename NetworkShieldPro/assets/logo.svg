@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <!-- Background shield -->
+  <path d="M100 10 L180 40 L180 110 C180 150 150 180 100 190 C50 180 20 150 20 110 L20 40 Z" 
+        fill="#121212" stroke="#1DB954" stroke-width="4"/>
+  
+  <!-- Network lines -->
+  <g stroke="#1DB954" stroke-width="2" fill="none">
+    <path d="M100 70 L60 110 M100 70 L140 110 M100 70 L100 140" />
+    
+    <!-- Connection points -->
+    <circle cx="100" cy="70" r="15" fill="#181818" stroke-width="2"/>
+    <circle cx="60" cy="110" r="12" fill="#181818" stroke-width="2"/>
+    <circle cx="140" cy="110" r="12" fill="#181818" stroke-width="2"/>
+    <circle cx="100" cy="140" r="12" fill="#181818" stroke-width="2"/>
+    
+    <!-- Alert symbol (in top circle) -->
+    <path d="M100 64 L100 72 M100 76 L100 76" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="100" cy="76" r="1.5" fill="#FFFFFF"/>
+  </g>
+  
+  <!-- Inner decorative circles -->
+  <circle cx="100" cy="70" r="8" fill="#1DB954" opacity="0.7"/>
+  
+  <!-- Dots in other nodes representing devices -->
+  <circle cx="60" cy="110" r="5" fill="#FFFFFF"/>
+  <circle cx="140" cy="110" r="5" fill="#FFFFFF"/>
+  <circle cx="100" cy="140" r="5" fill="#FFFFFF"/>
+  
+  <!-- Malicious connection (pulsing red line) -->
+  <path d="M60 110 C80 130 120 90 140 110" stroke="#EA4335" stroke-width="2" stroke-dasharray="3,2" opacity="0.8"/>
+  
+  <!-- Scan effect (radar-like) -->
+  <circle cx="100" cy="100" r="50" fill="none" stroke="#1DB954" stroke-width="1" opacity="0.3"/>
+  <circle cx="100" cy="100" r="35" fill="none" stroke="#1DB954" stroke-width="1" opacity="0.5"/>
+  <circle cx="100" cy="100" r="20" fill="none" stroke="#1DB954" stroke-width="1" opacity="0.7"/>
+  
+  <!-- Shield lock icon -->
+  <path d="M100 100 C96 100 93 103 93 107 L93 115 L88 115 L88 120 L112 120 L112 115 L107 115 L107 107 C107 103 104 100 100 100 Z M100 105 C101.5 105 102 106 102 107 L102 115 L98 115 L98 107 C98 106 98.5 105 100 105 Z" 
+        fill="#FFFFFF" opacity="0.9"/>
+</svg>
