@@ -360,15 +360,20 @@ class SidebarItem(tk.Frame):
         self.command = command
         self.is_active = is_active
         
+        # El işaretçisi göster
+        self.configure(cursor="hand2")
+        
         # İkon ve metin
         self.icon_label = tk.Label(self, text=icon, font=("Arial", 20), 
                                   bg=THEME["sidebar_background"],
-                                  fg=THEME["primary"] if is_active else THEME["text_secondary"])
+                                  fg=THEME["primary"] if is_active else THEME["text_secondary"],
+                                  cursor="hand2")  # El işaretçisi göster
         self.icon_label.pack(side=tk.LEFT, padx=(20, 10))
         
         self.text_label = tk.Label(self, text=text, font=("Arial", 12), 
                                  bg=THEME["sidebar_background"],
-                                 fg=THEME["text_primary"] if is_active else THEME["text_secondary"])
+                                 fg=THEME["text_primary"] if is_active else THEME["text_secondary"],
+                                 cursor="hand2")  # El işaretçisi göster
         self.text_label.pack(side=tk.LEFT, fill=tk.Y)
         
         # Sol kenar işaretleyicisi (aktif durumda)
@@ -412,9 +417,12 @@ class SidebarItem(tk.Frame):
         """Tıklandığında komutu çalıştırır"""
         if self.command:
             try:
+                print(f"Sidebar item tıklandı: {self.text_label['text']}")  # Debug log
                 self.command()
             except Exception as e:
-                logger.error(f"Sidebar item tıklanması sırasında hata: {e}")
+                # Python 'traceback' modulünü import et
+                import traceback
+                print(f"Sidebar item tıklanması sırasında hata: {e}")
                 traceback.print_exc()
     
     def set_active(self, active):
