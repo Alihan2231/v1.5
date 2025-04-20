@@ -298,6 +298,11 @@ class ARPScanner:
     
     def start_periodic_scan(self, interval_hours=None):
         """Periyodik tarama başlatır"""
+        # Eğer periyodik tarama zaten çalışıyorsa ve interval değişmişse, önce durdur
+        if self.periodic_running and interval_hours is not None and self.scan_interval != interval_hours:
+            self.logger.info(f"Periyodik tarama aralığı değişti: {self.scan_interval} -> {interval_hours} saat. Tarama yeniden başlatılıyor.")
+            self.stop_periodic_scan()
+        
         if interval_hours is not None:
             self.scan_interval = interval_hours
             
@@ -310,8 +315,8 @@ class ARPScanner:
                 self.logger.error(f"Tarama aralığı kaydedilirken hata: {e}")
         
         if self.periodic_running:
-            self.logger.warning("Periyodik tarama zaten çalışıyor")
-            return False
+            self.logger.info(f"Periyodik tarama zaten çalışıyor (Aralık: {self.scan_interval} saat)")
+            return True
         
         self.periodic_running = True
         self.stop_event.clear()  # Durdurma sinyalini temizle
