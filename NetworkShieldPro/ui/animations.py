@@ -9,7 +9,11 @@ Bu modül, uygulamada kullanılan animasyon efektlerini içerir.
 import tkinter as tk
 import math
 import time
+import logging
 from ui.colors import THEME
+
+# Loglama
+logger = logging.getLogger("NetworkShieldPro.animations")
 
 class SmoothTransition:
     """Yumuşak geçiş animasyonu için yardımcı sınıf"""
@@ -29,47 +33,53 @@ class SmoothTransition:
     
     def _animate(self):
         """Animasyon adımını gerçekleştirir"""
-        current_time = time.time() * 1000
-        elapsed = current_time - self.start_time
-        
-        if elapsed >= self.duration:
-            # Animasyon tamamlandı, son değeri ayarla
-            self._set_property(self.end_value)
-            self.animation_id = None
-            return
-        
-        # İlerleme oranını hesapla (0-1 arası)
-        progress = elapsed / self.duration
-        
-        # Yavaşlayarak azalma/artma efekti için ease-out fonksiyonu
-        progress = self._ease_out_quad(progress)
-        
-        # Ara değeri hesapla
-        current_value = self.start_value + (self.end_value - self.start_value) * progress
-        
-        # Özelliği ayarla
-        self._set_property(current_value)
-        
-        # Bir sonraki kareyi planla
-        self.animation_id = self.widget.after(16, self._animate)  # ~60 FPS
+        try:
+            current_time = time.time() * 1000
+            elapsed = current_time - self.start_time
+            
+            if elapsed >= self.duration:
+                # Animasyon tamamlandı, son değeri ayarla
+                self._set_property(self.end_value)
+                self.animation_id = None
+                return
+            
+            # İlerleme oranını hesapla (0-1 arası)
+            progress = elapsed / self.duration
+            
+            # Yavaşlayarak azalma/artma efekti için ease-out fonksiyonu
+            progress = self._ease_out_quad(progress)
+            
+            # Ara değeri hesapla
+            current_value = self.start_value + (self.end_value - self.start_value) * progress
+            
+            # Özelliği ayarla
+            self._set_property(current_value)
+            
+            # Bir sonraki kareyi planla
+            self.animation_id = self.widget.after(16, self._animate)  # ~60 FPS
+        except Exception as e:
+            logger.error(f"Animasyon sırasında hata: {e}")
     
     def _set_property(self, value):
         """Widget'ın belirtilen özelliğini ayarlar"""
-        if self.property_name == 'x':
-            self.widget.place_configure(x=value)
-        elif self.property_name == 'y':
-            self.widget.place_configure(y=value)
-        elif self.property_name == 'width':
-            self.widget.configure(width=int(value))
-        elif self.property_name == 'height':
-            self.widget.configure(height=int(value))
-        elif self.property_name == 'alpha':
-            # Alfa değeri 0-1 arasında olmalı
-            # Bu işlem widget'ın tipine bağlı olarak yapılmalı
-            pass
-        elif hasattr(self.widget, self.property_name):
-            # Özel özellikler için
-            setattr(self.widget, self.property_name, value)
+        try:
+            if self.property_name == 'x':
+                self.widget.place_configure(x=value)
+            elif self.property_name == 'y':
+                self.widget.place_configure(y=value)
+            elif self.property_name == 'width':
+                self.widget.configure(width=int(value))
+            elif self.property_name == 'height':
+                self.widget.configure(height=int(value))
+            elif self.property_name == 'alpha':
+                # Alfa değeri 0-1 arasında olmalı
+                # Bu işlem widget'ın tipine bağlı olarak yapılmalı
+                pass
+            elif hasattr(self.widget, self.property_name):
+                # Özel özellikler için
+                setattr(self.widget, self.property_name, value)
+        except Exception as e:
+            logger.error(f"Widget özelliği ayarlanırken hata: {e}")
     
     def _ease_out_quad(self, t):
         """Ease-out quadratic easing fonksiyonu"""
@@ -92,50 +102,56 @@ class FadeEffect:
     
     def _animate(self):
         """Animasyon adımını gerçekleştirir"""
-        current_time = time.time() * 1000
-        elapsed = current_time - self.start_time
-        
-        if elapsed >= self.duration:
-            # Animasyon tamamlandı, son değeri ayarla
-            self._set_alpha(self.end_alpha)
-            self.animation_id = None
-            return
-        
-        # İlerleme oranını hesapla (0-1 arası)
-        progress = elapsed / self.duration
-        
-        # Yavaşlayarak değişim için ease-out fonksiyonu
-        progress = self._ease_out_quad(progress)
-        
-        # Ara değeri hesapla
-        current_alpha = self.start_alpha + (self.end_alpha - self.start_alpha) * progress
-        
-        # Alfa değerini ayarla
-        self._set_alpha(current_alpha)
-        
-        # Bir sonraki kareyi planla
-        self.animation_id = self.widget.after(16, self._animate)  # ~60 FPS
+        try:
+            current_time = time.time() * 1000
+            elapsed = current_time - self.start_time
+            
+            if elapsed >= self.duration:
+                # Animasyon tamamlandı, son değeri ayarla
+                self._set_alpha(self.end_alpha)
+                self.animation_id = None
+                return
+            
+            # İlerleme oranını hesapla (0-1 arası)
+            progress = elapsed / self.duration
+            
+            # Yavaşlayarak değişim için ease-out fonksiyonu
+            progress = self._ease_out_quad(progress)
+            
+            # Ara değeri hesapla
+            current_alpha = self.start_alpha + (self.end_alpha - self.start_alpha) * progress
+            
+            # Alfa değerini ayarla
+            self._set_alpha(current_alpha)
+            
+            # Bir sonraki kareyi planla
+            self.animation_id = self.widget.after(16, self._animate)  # ~60 FPS
+        except Exception as e:
+            logger.error(f"Fade animasyonu sırasında hata: {e}")
     
     def _set_alpha(self, alpha):
         """Widget'ın alfa değerini ayarlar (şeffaflık)"""
-        # Tkinter doğrudan alfa değeri desteklemez
-        # Farklı widget tipleri için farklı yöntemler kullanılabilir
-        
-        if isinstance(self.widget, tk.Canvas):
-            # Tüm öğelerin alfa değerini ayarla
-            items = self.widget.find_all()
-            for item in items:
-                # Öğelerin alfa değerini ayarlamak için tag'leri kullanabiliriz
-                # Örnek: self.widget.itemconfigure(item, stipple='gray50')
-                pass
-        
-        # Frame, Label gibi widget'lar için bir geçici çözüm
-        if alpha < 0.1:
-            self.widget.place_forget()  # Tamamen şeffafsa gizle
-        else:
-            # Frame'in arkaplan rengini alfa değeriyle ayarlama
-            # Gerçek RGBA desteklemediği için bu yaklaşık bir yöntem
-            self.widget.place(x=self.widget.winfo_x(), y=self.widget.winfo_y())
+        try:
+            # Tkinter doğrudan alfa değeri desteklemez
+            # Farklı widget tipleri için farklı yöntemler kullanılabilir
+            
+            if isinstance(self.widget, tk.Canvas):
+                # Tüm öğelerin alfa değerini ayarla
+                items = self.widget.find_all()
+                for item in items:
+                    # Öğelerin alfa değerini ayarlamak için tag'leri kullanabiliriz
+                    # Örnek: self.widget.itemconfigure(item, stipple='gray50')
+                    pass
+            
+            # Frame, Label gibi widget'lar için bir geçici çözüm
+            if alpha < 0.1:
+                self.widget.place_forget()  # Tamamen şeffafsa gizle
+            else:
+                # Frame'in arkaplan rengini alfa değeriyle ayarlama
+                # Gerçek RGBA desteklemediği için bu yaklaşık bir yöntem
+                self.widget.place(x=self.widget.winfo_x(), y=self.widget.winfo_y())
+        except Exception as e:
+            logger.error(f"Alpha değeri ayarlanırken hata: {e}")
     
     def _ease_out_quad(self, t):
         """Ease-out quadratic easing fonksiyonu"""
@@ -162,36 +178,42 @@ class PulseEffect:
     def stop(self):
         """Animasyonu durdurur"""
         if self.animation_id:
-            self.widget.after_cancel(self.animation_id)
-            self.animation_id = None
-            
-            # Widget'ı orijinal boyutuna getir
-            self.widget.configure(width=self.original_width, height=self.original_height)
+            try:
+                self.widget.after_cancel(self.animation_id)
+                self.animation_id = None
+                
+                # Widget'ı orijinal boyutuna getir
+                self.widget.configure(width=self.original_width, height=self.original_height)
+            except Exception as e:
+                logger.error(f"Pulse animasyonu durdurulurken hata: {e}")
     
     def _animate(self):
         """Animasyon adımını gerçekleştirir"""
-        current_time = time.time() * 1000
-        elapsed = (current_time - self.start_time) % self.duration
-        
-        # İlerleme oranını hesapla (0-1 arası)
-        progress = elapsed / self.duration
-        
-        # Sinüs fonksiyonu ile yumuşak nabız atma efekti
-        scale = self.min_scale + (self.max_scale - self.min_scale) * (math.sin(progress * 2 * math.pi) + 1) / 2
-        
-        # Boyutları ayarla
-        new_width = int(self.original_width * scale)
-        new_height = int(self.original_height * scale)
-        self.widget.configure(width=new_width, height=new_height)
-        
-        # Tekrar et veya durdur
-        if self.repeat:
-            self.animation_id = self.widget.after(16, self._animate)  # ~60 FPS
-        else:
-            if progress > 0.99:  # Animasyon tamamlandı
-                self.animation_id = None
+        try:
+            current_time = time.time() * 1000
+            elapsed = (current_time - self.start_time) % self.duration
+            
+            # İlerleme oranını hesapla (0-1 arası)
+            progress = elapsed / self.duration
+            
+            # Sinüs fonksiyonu ile yumuşak nabız atma efekti
+            scale = self.min_scale + (self.max_scale - self.min_scale) * (math.sin(progress * 2 * math.pi) + 1) / 2
+            
+            # Boyutları ayarla
+            new_width = int(self.original_width * scale)
+            new_height = int(self.original_height * scale)
+            self.widget.configure(width=new_width, height=new_height)
+            
+            # Tekrar et veya durdur
+            if self.repeat:
+                self.animation_id = self.widget.after(16, self._animate)  # ~60 FPS
             else:
-                self.animation_id = self.widget.after(16, self._animate)
+                if progress > 0.99:  # Animasyon tamamlandı
+                    self.animation_id = None
+                else:
+                    self.animation_id = self.widget.after(16, self._animate)
+        except Exception as e:
+            logger.error(f"Pulse animasyonu sırasında hata: {e}")
 
 class SlideTransition:
     """Kaydırma geçiş efekti"""
@@ -210,76 +232,92 @@ class SlideTransition:
     
     def start(self):
         """Animasyonu başlatır"""
-        # Boyut bilgilerini güncelle
-        self.width = self.container.winfo_width()
-        self.height = self.container.winfo_height()
-        
-        # Yeni widget'ı görünür yap ve hazırla
-        if self.new_widget:
-            self.new_widget.place(x=0, y=0, width=self.width, height=self.height)
+        try:
+            # Boyut bilgilerini güncelle
+            self.width = self.container.winfo_width()
+            self.height = self.container.winfo_height()
             
-            # Başlangıç pozisyonunu ayarla
-            if self.direction == "left":
-                self.new_widget.place(x=self.width, y=0)
-            elif self.direction == "right":
-                self.new_widget.place(x=-self.width, y=0)
-            elif self.direction == "up":
-                self.new_widget.place(x=0, y=self.height)
-            elif self.direction == "down":
-                self.new_widget.place(x=0, y=-self.height)
-        
-        self.start_time = time.time() * 1000
-        self._animate()
+            # Yeni widget'ı görünür yap ve hazırla
+            if self.new_widget:
+                self.new_widget.place(x=0, y=0, width=self.width, height=self.height)
+                
+                # Başlangıç pozisyonunu ayarla
+                if self.direction == "left":
+                    self.new_widget.place(x=self.width, y=0)
+                elif self.direction == "right":
+                    self.new_widget.place(x=-self.width, y=0)
+                elif self.direction == "up":
+                    self.new_widget.place(x=0, y=self.height)
+                elif self.direction == "down":
+                    self.new_widget.place(x=0, y=-self.height)
+            
+            self.start_time = time.time() * 1000
+            self._animate()
+        except Exception as e:
+            logger.error(f"Slide animasyonu başlatılırken hata: {e}")
+            # Hata durumunda direkt geçiş yap
+            if self.old_widget:
+                self.old_widget.place_forget()
+            if self.new_widget:
+                self.new_widget.place(x=0, y=0, width=self.width, height=self.height)
     
     def _animate(self):
         """Animasyon adımını gerçekleştirir"""
-        current_time = time.time() * 1000
-        elapsed = current_time - self.start_time
-        
-        if elapsed >= self.duration:
-            # Animasyon tamamlandı, son pozisyonları ayarla
+        try:
+            current_time = time.time() * 1000
+            elapsed = current_time - self.start_time
+            
+            if elapsed >= self.duration:
+                # Animasyon tamamlandı, son pozisyonları ayarla
+                if self.old_widget:
+                    self.old_widget.place_forget()
+                
+                if self.new_widget:
+                    self.new_widget.place(x=0, y=0, width=self.width, height=self.height)
+                
+                self.animation_id = None
+                return
+            
+            # İlerleme oranını hesapla (0-1 arası)
+            progress = elapsed / self.duration
+            
+            # Yavaşlayarak değişim için ease-out fonksiyonu
+            progress = self._ease_out_quad(progress)
+            
+            # Yeni ve eski widget'ları hareket ettir
+            if self.direction == "left":
+                if self.old_widget:
+                    self.old_widget.place(x=-(self.width * progress), y=0)
+                if self.new_widget:
+                    self.new_widget.place(x=self.width * (1 - progress), y=0)
+            
+            elif self.direction == "right":
+                if self.old_widget:
+                    self.old_widget.place(x=self.width * progress, y=0)
+                if self.new_widget:
+                    self.new_widget.place(x=-(self.width * (1 - progress)), y=0)
+            
+            elif self.direction == "up":
+                if self.old_widget:
+                    self.old_widget.place(x=0, y=-(self.height * progress))
+                if self.new_widget:
+                    self.new_widget.place(x=0, y=self.height * (1 - progress))
+            
+            elif self.direction == "down":
+                if self.old_widget:
+                    self.old_widget.place(x=0, y=self.height * progress)
+                if self.new_widget:
+                    self.new_widget.place(x=0, y=-(self.height * (1 - progress)))
+            
+            # Bir sonraki kareyi planla
+            self.animation_id = self.container.after(16, self._animate)  # ~60 FPS
+        except Exception as e:
+            logger.error(f"Slide animasyonu sırasında hata: {e}")
+            # Hata durumunda direkt geçiş yap
             if self.old_widget:
                 self.old_widget.place_forget()
-            
             if self.new_widget:
                 self.new_widget.place(x=0, y=0, width=self.width, height=self.height)
-            
-            self.animation_id = None
-            return
-        
-        # İlerleme oranını hesapla (0-1 arası)
-        progress = elapsed / self.duration
-        
-        # Yavaşlayarak değişim için ease-out fonksiyonu
-        progress = self._ease_out_quad(progress)
-        
-        # Yeni ve eski widget'ları hareket ettir
-        if self.direction == "left":
-            if self.old_widget:
-                self.old_widget.place(x=-(self.width * progress), y=0)
-            if self.new_widget:
-                self.new_widget.place(x=self.width * (1 - progress), y=0)
-        
-        elif self.direction == "right":
-            if self.old_widget:
-                self.old_widget.place(x=self.width * progress, y=0)
-            if self.new_widget:
-                self.new_widget.place(x=-(self.width * (1 - progress)), y=0)
-        
-        elif self.direction == "up":
-            if self.old_widget:
-                self.old_widget.place(x=0, y=-(self.height * progress))
-            if self.new_widget:
-                self.new_widget.place(x=0, y=self.height * (1 - progress))
-        
-        elif self.direction == "down":
-            if self.old_widget:
-                self.old_widget.place(x=0, y=self.height * progress)
-            if self.new_widget:
-                self.new_widget.place(x=0, y=-(self.height * (1 - progress)))
-        
-        # Bir sonraki kareyi planla
-        self.animation_id = self.container.after(16, self._animate)  # ~60 FPS
     
     def _ease_out_quad(self, t):
         """Ease-out quadratic easing fonksiyonu"""
