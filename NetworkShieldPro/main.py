@@ -48,7 +48,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("V-ARP")
 
-class NetworkShieldProApp:
+class VARPApp:
     def __init__(self, root):
         self.root = root
         self.root.title("V-ARP")
@@ -74,8 +74,8 @@ class NetworkShieldProApp:
             self._create_custom_titlebar()
             
             # Uygulamayı başlat
-            from ui.screens import SpotifyARPApp
-            self.app = SpotifyARPApp(self.root)
+            from ui.screens import VARPApp
+            self.app = VARPApp(self.root)
             
             # Sistem tepsisi ikonunu oluştur
             if SYSTEM_TRAY_AVAILABLE:
@@ -359,7 +359,7 @@ def main():
         # Pencereyi merkeze konumlandır
         root.geometry(f"{window_width}x{window_height}+{center_x}+{center_y}")
         
-        app = NetworkShieldProApp(root)
+        app = VARPApp(root)
         
         # Çıkışta temizlik yap
         atexit.register(app.cleanup)
