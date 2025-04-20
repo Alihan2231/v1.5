@@ -394,7 +394,7 @@ class ScanScreen(BaseScreen):
         
         # Tablo başlık çerçevesi
         header_frame = tk.Frame(self.devices_card, bg=THEME["card_background"])
-        header_frame.place(x=20, y=60, right=20, height=30)
+        header_frame.place(x=20, y=60, width=self.devices_card.winfo_width()-40, height=30)
         
         # Tablo başlıkları
         header_columns = [
@@ -415,12 +415,16 @@ class ScanScreen(BaseScreen):
         # Cihaz listesi için kaydırılabilir çerçeve
         self.devices_canvas = tk.Canvas(self.devices_card, bg=THEME["card_background"],
                                     highlightthickness=0)
-        self.devices_canvas.place(x=20, y=100, right=40, bottom=20)
+        # Boyutlar değiştiğinde güncelleneceği için tam boyutları belirterek yerleştir
+        self.devices_canvas.place(x=20, y=100, 
+                              width=self.devices_card.winfo_width()-60, 
+                              height=self.devices_card.winfo_height()-120)
         
         # Kaydırma çubuğu
         scrollbar = ttk.Scrollbar(self.devices_card, orient="vertical", 
                                 command=self.devices_canvas.yview)
-        scrollbar.place(relx=1, y=100, bottom=20, anchor="ne", width=20)
+        scrollbar.place(relx=1, y=100, height=self.devices_card.winfo_height()-120, 
+                      anchor="ne", width=20)
         
         self.devices_canvas.configure(yscrollcommand=scrollbar.set)
         
@@ -1646,41 +1650,51 @@ class SpotifyARPApp:
     
     def show_screen(self, screen_id):
         """Belirtilen ekranı gösterir"""
-        if screen_id not in self.screens:
-            return
-        
-        # Menü öğelerini güncelle
-        for item in self.menu_items:
-            if item["id"] == screen_id:
-                item["item"].set_active(True)
-            else:
-                item["item"].set_active(False)
-        
-        # Mevcut ekranı gizle ve yeni ekranı göster
-        old_screen = self.current_screen
-        new_screen = self.screens[screen_id]
-        
-        # Animasyonlu geçiş
-        if old_screen:
-            # Rastgele yön seç
-            directions = ["left", "right", "up", "down"]
-            direction = random.choice(directions)
+        try:
+            print(f"Ekran değiştiriliyor: {screen_id}")  # Debug log
             
-            # Geçişi başlat
-            transition = SlideTransition(
-                self.background_canvas, 
-                old_widget=old_screen.frame, 
-                new_widget=new_screen.frame, 
-                direction=direction, 
-                duration=THEME["animation_medium"]
-            )
-            transition.start()
-        else:
-            # İlk ekran - doğrudan göster
-            new_screen.frame.place(x=0, y=0, relwidth=1, relheight=1)
-        
-        self.current_screen = new_screen
-        new_screen.on_show()
+            if screen_id not in self.screens:
+                print(f"Hata: {screen_id} ekranı bulunamadı!")  # Debug log
+                return
+            
+            # Menü öğelerini güncelle
+            for item in self.menu_items:
+                if item["id"] == screen_id:
+                    item["item"].set_active(True)
+                else:
+                    item["item"].set_active(False)
+            
+            # Mevcut ekranı gizle ve yeni ekranı göster
+            old_screen = self.current_screen
+            new_screen = self.screens[screen_id]
+            
+            print(f"Geçiş: {old_screen.__class__.__name__ if old_screen else 'None'} -> {new_screen.__class__.__name__}")  # Debug log
+            
+            # Animasyonlu geçiş
+            if old_screen:
+                # Rastgele yön seç
+                directions = ["left", "right", "up", "down"]
+                direction = random.choice(directions)
+                
+                # Geçişi başlat
+                transition = SlideTransition(
+                    self.background_canvas, 
+                    old_widget=old_screen.frame, 
+                    new_widget=new_screen.frame, 
+                    direction=direction, 
+                    duration=THEME["animation_medium"]
+                )
+                transition.start()
+            else:
+                # İlk ekran - doğrudan göster
+                new_screen.frame.place(x=0, y=0, relwidth=1, relheight=1)
+            
+            self.current_screen = new_screen
+            new_screen.on_show()
+        except Exception as e:
+            print(f"Ekran değiştirme hatası: {e}")  # Debug log
+            import traceback
+            traceback.print_exc()
     
     def _start_background_animation(self):
         """Arka plan animasyonunu başlatır"""
