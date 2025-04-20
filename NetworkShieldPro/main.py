@@ -51,9 +51,12 @@ logger = logging.getLogger("NetworkShieldPro")
 class NetworkShieldProApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("NetworkShieldPro - ARP Koruması")
+        self.root.title("NetworkShieldPro")
         self.root.geometry("1024x700")
         self.root.minsize(800, 600)
+        
+        # Pencere dekorasyonlarını kaldır (standart başlık çubuğunu gizle)
+        self.root.overrideredirect(True)
         
         # Ana pencere kapatma olayını yakala
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -66,6 +69,9 @@ class NetworkShieldProApp:
             from ui.colors import THEME
             # Pencere rengini ayarla
             self.root.configure(bg=THEME["background"])
+            
+            # Özel başlık çubuğunu oluştur
+            self._create_custom_titlebar()
             
             # Uygulamayı başlat
             from ui.screens import SpotifyARPApp
@@ -130,6 +136,105 @@ class NetworkShieldProApp:
             logger.error(f"Sistem tepsisi ikonu oluşturulurken hata: {e}")
             traceback.print_exc()
     
+    def _create_custom_titlebar(self):
+        """Özel siyah başlık çubuğu oluşturur"""
+        from ui.colors import THEME
+        
+        # Başlık çubuğu frame'i
+        self.titlebar = tk.Frame(self.root, bg=THEME["card_background"], height=30)
+        self.titlebar.pack(side=tk.TOP, fill=tk.X)
+        
+        # SVG ikon
+        try:
+            import cairosvg
+            import io
+            from PIL import Image, ImageTk
+            
+            # SVG dosyasını oku ve PNG'ye dönüştür
+            svg_data = open("assets/icons/app_icon.svg", "rb").read()
+            png_data = cairosvg.svg2png(bytestring=svg_data, output_width=20, output_height=20)
+            
+            # PNG verisini PIL Image'e dönüştür
+            icon_image = Image.open(io.BytesIO(png_data))
+            icon_photo = ImageTk.PhotoImage(icon_image)
+            
+            # İkon etiketi
+            self.icon_label = tk.Label(self.titlebar, image=icon_photo, bg=THEME["card_background"])
+            self.icon_label.image = icon_photo  # Referansı koru
+            self.icon_label.pack(side=tk.LEFT, padx=10)
+        except Exception as e:
+            logger.error(f"İkon yüklenirken hata: {e}")
+            # İkon yükleme başarısız olursa basit bir etiket göster
+            self.icon_label = tk.Label(self.titlebar, text="🛡️", bg=THEME["card_background"], 
+                                      fg=THEME["primary"], font=("Arial", 12, "bold"))
+            self.icon_label.pack(side=tk.LEFT, padx=10)
+        
+        # Başlık metni
+        self.title_label = tk.Label(self.titlebar, text="NetworkShieldPro - ARP Koruması", 
+                                  bg=THEME["card_background"], fg=THEME["text_primary"],
+                                  font=("Arial", 10, "bold"))
+        self.title_label.pack(side=tk.LEFT, pady=5)
+        
+        # Pencere kontrol butonları için frame
+        self.buttons_frame = tk.Frame(self.titlebar, bg=THEME["card_background"])
+        self.buttons_frame.pack(side=tk.RIGHT, padx=5)
+        
+        # Minimize butonu
+        self.minimize_btn = tk.Label(self.buttons_frame, text="─", bg=THEME["card_background"], 
+                                   fg=THEME["text_primary"], font=("Arial", 12), width=2, cursor="hand2")
+        self.minimize_btn.pack(side=tk.LEFT, padx=5)
+        self.minimize_btn.bind("<Button-1>", lambda e: self.hide_app())
+        self.minimize_btn.bind("<Enter>", lambda e: self.minimize_btn.config(
+            bg=THEME["secondary"], fg=THEME["primary"]))
+        self.minimize_btn.bind("<Leave>", lambda e: self.minimize_btn.config(
+            bg=THEME["card_background"], fg=THEME["text_primary"]))
+        
+        # Kapat butonu
+        self.close_btn = tk.Label(self.buttons_frame, text="×", bg=THEME["card_background"], 
+                                 fg=THEME["text_primary"], font=("Arial", 12), width=2, cursor="hand2")
+        self.close_btn.pack(side=tk.LEFT, padx=5)
+        self.close_btn.bind("<Button-1>", lambda e: self.on_close())
+        self.close_btn.bind("<Enter>", lambda e: self.close_btn.config(
+            bg="#e81123", fg="white"))  # Kırmızı arka plan ve beyaz metin
+        self.close_btn.bind("<Leave>", lambda e: self.close_btn.config(
+            bg=THEME["card_background"], fg=THEME["text_primary"]))
+        
+        # Sürükleme ve bırakma kontrolü için değişkenler
+        self._x = 0
+        self._y = 0
+        
+        # Pencereyi sürükleme işlevselliği
+        self.titlebar.bind("<ButtonPress-1>", self._start_drag)
+        self.titlebar.bind("<ButtonRelease-1>", self._stop_drag)
+        self.titlebar.bind("<B1-Motion>", self._on_motion)
+        
+        # Başlık etiketini de sürüklenebilir yap
+        self.title_label.bind("<ButtonPress-1>", self._start_drag)
+        self.title_label.bind("<ButtonRelease-1>", self._stop_drag)
+        self.title_label.bind("<B1-Motion>", self._on_motion)
+        
+        # İkon etiketini de sürüklenebilir yap
+        self.icon_label.bind("<ButtonPress-1>", self._start_drag)
+        self.icon_label.bind("<ButtonRelease-1>", self._stop_drag)
+        self.icon_label.bind("<B1-Motion>", self._on_motion)
+    
+    def _start_drag(self, event):
+        """Pencere sürükleme başlatma"""
+        self._x = event.x
+        self._y = event.y
+    
+    def _stop_drag(self, event):
+        """Pencere sürükleme durdurma"""
+        self._x = None
+        self._y = None
+    
+    def _on_motion(self, event):
+        """Pencere sürükleme hareketi"""
+        if self._x is not None and self._y is not None:
+            x = self.root.winfo_x() + (event.x - self._x)
+            y = self.root.winfo_y() + (event.y - self._y)
+            self.root.geometry(f"+{x}+{y}")
+            
     def is_periodic_active(self):
         """Periyodik taramanın aktif olup olmadığını kontrol eder"""
         try:
@@ -241,6 +346,19 @@ def main():
     try:
         # Ana pencereyi oluştur
         root = tk.Tk()
+        
+        # Pencereyi ekranın ortasında konumlandır
+        window_width = 1024
+        window_height = 700
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        
+        center_x = int((screen_width - window_width) / 2)
+        center_y = int((screen_height - window_height) / 2)
+        
+        # Pencereyi merkeze konumlandır
+        root.geometry(f"{window_width}x{window_height}+{center_x}+{center_y}")
+        
         app = NetworkShieldProApp(root)
         
         # Çıkışta temizlik yap
