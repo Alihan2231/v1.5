@@ -1467,8 +1467,13 @@ class SettingsScreen(BaseScreen):
             
             # Eğer periyodik tarama çalışıyorsa, yeni aralığı uygula
             old_interval = get_setting("scan_interval", 24)
-            if hasattr(self.app, "scanner") and self.app.scanner.periodic_running and old_interval != scan_interval:
-                self.app.start_periodic_scan(scan_interval)
+            if hasattr(self.app, "scanner"):
+                # Periyodik tarama çalışıyorsa ve aralık değiştiyse veya çalışmıyorsa ve açık olması gerekiyorsa
+                if (self.app.scanner.periodic_running and old_interval != scan_interval) or \
+                   (not self.app.scanner.periodic_running and settings.get("periodic_scan_active", False)):
+                    logger.info(f"Periyodik tarama ayarı güncelleniyor. Eski aralık: {old_interval}, Yeni aralık: {scan_interval}")
+                    # Önce durdurup sonra yeni aralıkla başlatmak için
+                    self.app.start_periodic_scan(scan_interval)
             
             # Ayarları güncelle
             update_settings(settings)
