@@ -13,6 +13,7 @@ import time
 import math
 from ui.colors import THEME, get_status_color
 import random
+import os
 import logging
 
 # Loglama
@@ -649,3 +650,375 @@ class AnimatedChart(tk.Canvas):
     def _on_resize(self, event):
         """Boyut değiştiğinde yeniden çizer"""
         self._draw_chart()
+
+
+class SpotifyCheckbox(tk.Canvas):
+    """Spotify tarzı onay kutusu (checkbox)"""
+    def __init__(self, parent, text="", command=None, checked=False, 
+                 width=300, height=30, **kwargs):
+        super().__init__(parent, bg=THEME["background"], highlightthickness=0, 
+                         width=width, height=height, **kwargs)
+        self.text = text
+        self.command = command
+        self.checked = checked
+        self.hover = False
+        
+        # Checkbox çiz
+        self._draw_checkbox()
+        
+        # Etkileşim için event'leri bağla
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.bind("<Button-1>", self._on_click)
+        self.bind("<Configure>", self._on_resize)
+    
+    def _draw_checkbox(self):
+        """Checkbox'ı çizer"""
+        self.delete("all")
+        width, height = self.winfo_width(), self.winfo_height()
+        
+        # Boyutlar çok küçükse çizme
+        if width < 20 or height < 20:
+            return
+        
+        # Kutucuk boyutu ve pozisyonu
+        box_size = min(20, height - 4)
+        box_x = 5
+        box_y = height // 2 - box_size // 2
+        
+        # Arkaplan rengi
+        bg_color = THEME["hover_secondary"] if self.hover else THEME["secondary"]
+        
+        # Kutucuk çiz (yuvarlatılmış köşeli dikdörtgen)
+        radius = min(4, box_size // 4)
+        box_rect = self.create_rounded_rectangle(
+            box_x, box_y,
+            box_x + box_size, box_y + box_size,
+            radius=radius, fill=bg_color, outline=""
+        )
+        
+        # İşaretliyse tik işareti çiz
+        if self.checked:
+            # Tik işareti için noktalar (tick mark)
+            padding = box_size // 4
+            self.create_line(
+                box_x + padding, box_y + box_size // 2,
+                box_x + box_size // 3, box_y + box_size - padding,
+                box_x + box_size - padding, box_y + padding,
+                fill=THEME["primary"], width=2, smooth=True
+            )
+        
+        # Metin
+        text_x = box_x + box_size + 10
+        text_y = height // 2
+        self.create_text(
+            text_x, text_y,
+            text=self.text, anchor="w",
+            fill=THEME["text_primary"],
+            font=("Arial", 11)
+        )
+    
+    def create_rounded_rectangle(self, x1, y1, x2, y2, radius=20, **kwargs):
+        """Yuvarlatılmış dikdörtgen oluşturur"""
+        points = [
+            x1+radius, y1,
+            x2-radius, y1,
+            x2, y1,
+            x2, y1+radius,
+            x2, y2-radius,
+            x2, y2,
+            x2-radius, y2,
+            x1+radius, y2,
+            x1, y2,
+            x1, y2-radius,
+            x1, y1+radius,
+            x1, y1
+        ]
+        return self.create_polygon(points, smooth=True, **kwargs)
+    
+    def _on_enter(self, event):
+        """Fare üzerine gelince efekt uygula"""
+        self.hover = True
+        self._draw_checkbox()
+    
+    def _on_leave(self, event):
+        """Fare ayrılınca normal haline döndür"""
+        self.hover = False
+        self._draw_checkbox()
+    
+    def _on_click(self, event):
+        """Tıklandığında durumu değiştir"""
+        self.checked = not self.checked
+        self._draw_checkbox()
+        if self.command:
+            try:
+                self.command()
+            except Exception as e:
+                logger.error(f"Checkbox komutu çalıştırılırken hata: {e}")
+                traceback.print_exc()
+    
+    def _on_resize(self, event):
+        """Boyut değiştiğinde yeniden çizer"""
+        self._draw_checkbox()
+    
+    def is_checked(self):
+        """Checkbox'ın durumunu döndürür"""
+        return self.checked
+    
+    def set_checked(self, checked):
+        """Checkbox'ın durumunu ayarlar"""
+        self.checked = checked
+        self._draw_checkbox()
+    
+    def configure(self, **kwargs):
+        """Checkbox özelliklerini yapılandırır"""
+        if "text" in kwargs:
+            self.text = kwargs.pop("text")
+        if "command" in kwargs:
+            self.command = kwargs.pop("command")
+            
+        super().configure(**kwargs)
+        self._draw_checkbox()
+
+
+class SpotifyCombobox(tk.Frame):
+    """Spotify tarzı açılır menü (combobox)"""
+    def __init__(self, parent, values=None, default=None, command=None, 
+                 width=120, height=30, **kwargs):
+        super().__init__(parent, bg=THEME["background"], **kwargs)
+        
+        if values is None:
+            values = []
+        
+        self.values = values
+        self.command = command
+        self.current_value = default if default in values else (values[0] if values else "")
+        self.dropdown_visible = False
+        self.hover = False
+        
+        # Ana çerçeve boyutlarını ayarla
+        self.config(width=width, height=height)
+        
+        # Açılır menü buton alanı
+        self.button_canvas = tk.Canvas(
+            self, bg=THEME["background"], 
+            highlightthickness=0, 
+            width=width, height=height
+        )
+        self.button_canvas.pack(fill=tk.BOTH, expand=True)
+        
+        # Dropdown menü penceresi (başlangıçta gizli)
+        self.dropdown_frame = None
+        
+        # Buton görünümünü çiz
+        self._draw_button()
+        
+        # Etkileşim için event'leri bağla
+        self.button_canvas.bind("<Enter>", self._on_enter)
+        self.button_canvas.bind("<Leave>", self._on_leave)
+        self.button_canvas.bind("<Button-1>", self._on_click)
+        self.button_canvas.bind("<Configure>", self._on_resize)
+    
+    def _draw_button(self):
+        """Açılır menü butonunu çizer"""
+        self.button_canvas.delete("all")
+        width = self.button_canvas.winfo_width()
+        height = self.button_canvas.winfo_height()
+        
+        # Boyutlar çok küçükse çizme
+        if width < 10 or height < 10:
+            return
+        
+        # Arkaplan rengi
+        bg_color = THEME["hover_secondary"] if self.hover else THEME["secondary"]
+        
+        # Yuvarlatılmış dikdörtgen arkaplan
+        radius = min(height // 4, 5)
+        self.button_canvas.create_rounded_rectangle(
+            0, 0, width, height,
+            radius=radius, fill=bg_color, outline=""
+        )
+        
+        # Seçili değer metni
+        text_width = width - 25  # Ok ikon için yer bırak
+        self.button_canvas.create_text(
+            10, height // 2,
+            text=self.current_value, anchor="w",
+            fill=THEME["text_primary"], 
+            font=("Arial", 11),
+            width=text_width
+        )
+        
+        # Aşağı ok ikonu
+        arrow_x = width - 15
+        arrow_y = height // 2
+        arrow_size = 6
+        self.button_canvas.create_polygon(
+            arrow_x - arrow_size, arrow_y - arrow_size // 2,
+            arrow_x + arrow_size, arrow_y - arrow_size // 2,
+            arrow_x, arrow_y + arrow_size // 2,
+            fill=THEME["text_secondary"]
+        )
+    
+    def create_rounded_rectangle(self, x1, y1, x2, y2, radius=20, **kwargs):
+        """Yuvarlatılmış dikdörtgen oluşturur"""
+        points = [
+            x1+radius, y1,
+            x2-radius, y1,
+            x2, y1,
+            x2, y1+radius,
+            x2, y2-radius,
+            x2, y2,
+            x2-radius, y2,
+            x1+radius, y2,
+            x1, y2,
+            x1, y2-radius,
+            x1, y1+radius,
+            x1, y1
+        ]
+        return self.create_polygon(points, smooth=True, **kwargs)
+    
+    def _on_enter(self, event):
+        """Fare üzerine gelince efekt uygula"""
+        self.hover = True
+        self._draw_button()
+    
+    def _on_leave(self, event):
+        """Fare ayrılınca normal haline döndür"""
+        self.hover = False
+        self._draw_button()
+    
+    def _on_click(self, event):
+        """Tıklandığında dropdown menüyü göster/gizle"""
+        if self.dropdown_visible:
+            self._hide_dropdown()
+        else:
+            self._show_dropdown()
+    
+    def _on_resize(self, event):
+        """Boyut değiştiğinde yeniden çizer"""
+        self._draw_button()
+    
+    def _show_dropdown(self):
+        """Dropdown menüyü göster"""
+        if self.dropdown_frame:
+            self._hide_dropdown()
+            return
+        
+        # Dropdown için yeni bir toplevel pencere oluştur
+        self.dropdown_frame = tk.Toplevel(self)
+        self.dropdown_frame.overrideredirect(True)  # Başlık çubuğunu gizle
+        
+        # Butonun konumunu al ve dropdown'u altına yerleştir
+        x = self.winfo_rootx()
+        y = self.winfo_rooty() + self.winfo_height()
+        width = self.winfo_width()
+        
+        # Dropdown pozisyonunu ayarla
+        self.dropdown_frame.geometry(f"{width}x{len(self.values) * 30}+{x}+{y}")
+        
+        # Dropdown arkaplanı
+        dropdown_bg = tk.Canvas(
+            self.dropdown_frame, 
+            bg=THEME["card_background"],
+            highlightthickness=0,
+            width=width,
+            height=len(self.values) * 30
+        )
+        dropdown_bg.pack(fill=tk.BOTH, expand=True)
+        
+        # Değerler için butonlar oluştur
+        for i, value in enumerate(self.values):
+            # Değer butonu için frame
+            item_y = i * 30
+            item_frame = tk.Frame(
+                dropdown_bg, 
+                bg=THEME["card_background"],
+                width=width,
+                height=30
+            )
+            item_frame.place(x=0, y=item_y)
+            
+            # Değer metni
+            value_label = tk.Label(
+                item_frame, 
+                text=value,
+                bg=THEME["card_background"],
+                fg=THEME["text_primary"],
+                font=("Arial", 11),
+                anchor="w",
+                padx=10
+            )
+            value_label.pack(fill=tk.BOTH, expand=True)
+            
+            # Fare efektleri
+            def on_enter(e, frame=item_frame):
+                frame.config(bg=THEME["hover_secondary"])
+                for widget in frame.winfo_children():
+                    widget.config(bg=THEME["hover_secondary"])
+            
+            def on_leave(e, frame=item_frame):
+                frame.config(bg=THEME["card_background"])
+                for widget in frame.winfo_children():
+                    widget.config(bg=THEME["card_background"])
+            
+            # Değer seçimi
+            def on_select(selected_value=value):
+                self.current_value = selected_value
+                self._hide_dropdown()
+                self._draw_button()
+                if self.command:
+                    try:
+                        self.command(selected_value)
+                    except Exception as e:
+                        logger.error(f"Combobox seçim hatası: {e}")
+                        traceback.print_exc()
+            
+            # Etkileşim için event'leri bağla
+            item_frame.bind("<Enter>", on_enter)
+            item_frame.bind("<Leave>", on_leave)
+            item_frame.bind("<Button-1>", lambda e, sv=value: on_select(sv))
+            value_label.bind("<Enter>", on_enter)
+            value_label.bind("<Leave>", on_leave)
+            value_label.bind("<Button-1>", lambda e, sv=value: on_select(sv))
+        
+        # Dropdown dışına tıklandığında kapat
+        def on_click_outside(event):
+            x, y = event.x_root, event.y_root
+            dropdown_x = self.dropdown_frame.winfo_rootx()
+            dropdown_y = self.dropdown_frame.winfo_rooty()
+            dropdown_width = self.dropdown_frame.winfo_width()
+            dropdown_height = self.dropdown_frame.winfo_height()
+            
+            if not (dropdown_x <= x <= dropdown_x + dropdown_width and
+                    dropdown_y <= y <= dropdown_y + dropdown_height):
+                self._hide_dropdown()
+        
+        # Fare tıklamasını yakalama
+        self.root_click_binding = self.winfo_toplevel().bind("<Button-1>", on_click_outside, add="+")
+        
+        self.dropdown_visible = True
+    
+    def _hide_dropdown(self):
+        """Dropdown menüyü gizle"""
+        if self.dropdown_frame:
+            # Event binding'i kaldır
+            if hasattr(self, 'root_click_binding'):
+                self.winfo_toplevel().unbind("<Button-1>", self.root_click_binding)
+            
+            # Dropdown'u kapat
+            self.dropdown_frame.destroy()
+            self.dropdown_frame = None
+            self.dropdown_visible = False
+    
+    def get(self):
+        """Mevcut seçili değeri döndürür"""
+        return self.current_value
+    
+    def set(self, value):
+        """Seçili değeri ayarlar"""
+        if value in self.values:
+            self.current_value = value
+            self._draw_button()
+            return True
+        return False
