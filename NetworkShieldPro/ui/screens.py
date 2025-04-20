@@ -21,7 +21,8 @@ import math
 from ui.colors import THEME, get_status_color
 from ui.custom_widgets import (
     RoundedFrame, SpotifyButton, CircularProgressbar, 
-    ParticleAnimationCanvas, AnimatedChart, SidebarItem, StatusBadge
+    ParticleAnimationCanvas, AnimatedChart, SidebarItem, StatusBadge,
+    SpotifyCheckbox, SpotifyCombobox
 )
 from ui.animations import SmoothTransition, FadeEffect, PulseEffect, SlideTransition
 from ui.helpers import (
@@ -1316,8 +1317,9 @@ class SettingsScreen(BaseScreen):
         self.interval_var.set("24")  # Varsayılan değer
         
         interval_options = ["1", "3", "6", "12", "24", "48"]
-        self.interval_dropdown = ttk.Combobox(interval_frame, textvariable=self.interval_var,
-                                         values=interval_options, width=10, state="readonly")
+        self.interval_dropdown = SpotifyCombobox(interval_frame, values=interval_options, 
+                                           default=self.interval_var.get(), width=80, height=30,
+                                           command=lambda v: self.interval_var.set(v))
         self.interval_dropdown.pack(side=tk.LEFT, padx=10)
         
         interval_unit = tk.Label(interval_frame, text="saat", 
@@ -1337,9 +1339,10 @@ class SettingsScreen(BaseScreen):
         self.auto_scan_var = tk.BooleanVar()
         self.auto_scan_var.set(True)  # Varsayılan değer
         
-        auto_scan_check = ttk.Checkbutton(auto_scan_frame, text="Uygulama başladığında otomatik tarama başlat", 
-                                      variable=self.auto_scan_var)
-        auto_scan_check.pack(side=tk.LEFT, padx=10)
+        self.auto_scan_check = SpotifyCheckbox(auto_scan_frame, text="Uygulama başladığında otomatik tarama başlat", 
+                                     checked=self.auto_scan_var.get(), width=450, height=30,
+                                     command=lambda: self.auto_scan_var.set(self.auto_scan_check.is_checked()))
+        self.auto_scan_check.pack(side=tk.LEFT, padx=10)
         
         # Bildirim ayarı
         notifications_frame = tk.Frame(settings_frame, bg=THEME["card_background"], height=40)
@@ -1353,9 +1356,10 @@ class SettingsScreen(BaseScreen):
         self.notifications_var = tk.BooleanVar()
         self.notifications_var.set(True)  # Varsayılan değer
         
-        notifications_check = ttk.Checkbutton(notifications_frame, text="Tehdit tespit edildiğinde bildirim göster", 
-                                         variable=self.notifications_var)
-        notifications_check.pack(side=tk.LEFT, padx=10)
+        self.notifications_check = SpotifyCheckbox(notifications_frame, text="Tehdit tespit edildiğinde bildirim göster", 
+                                     checked=self.notifications_var.get(), width=450, height=30,
+                                     command=lambda: self.notifications_var.set(self.notifications_check.is_checked()))
+        self.notifications_check.pack(side=tk.LEFT, padx=10)
         
         # Tema ayarı
         theme_frame = tk.Frame(settings_frame, bg=THEME["card_background"], height=40)
@@ -1369,9 +1373,10 @@ class SettingsScreen(BaseScreen):
         self.theme_var = tk.BooleanVar()
         self.theme_var.set(False)  # Varsayılan değer (koyu tema)
         
-        theme_check = ttk.Checkbutton(theme_frame, text="Açık tema kullan", 
-                                  variable=self.theme_var)
-        theme_check.pack(side=tk.LEFT, padx=10)
+        self.theme_check = SpotifyCheckbox(theme_frame, text="Açık tema kullan", 
+                                checked=self.theme_var.get(), width=450, height=30,
+                                command=lambda: self.theme_var.set(self.theme_check.is_checked()))
+        self.theme_check.pack(side=tk.LEFT, padx=10)
         
         # Uygulama bilgileri kartı
         self.about_card = RoundedFrame(content_frame, bg=THEME["card_background"], height=250)
@@ -1421,6 +1426,7 @@ class SettingsScreen(BaseScreen):
             # Tarama aralığı
             scan_interval = get_setting("scan_interval", 24)
             self.interval_var.set(str(scan_interval))
+            self.interval_dropdown.set(str(scan_interval))
             
             # Otomatik tarama
             auto_scan = get_setting("auto_scan", True)
@@ -1433,6 +1439,11 @@ class SettingsScreen(BaseScreen):
             # Tema
             dark_mode = not get_setting("dark_mode", False)
             self.theme_var.set(not dark_mode)  # Koyu tema varsayılan
+            
+            # Arayüz bileşenlerini güncelle
+            self.auto_scan_check.set_checked(auto_scan)
+            self.notifications_check.set_checked(notifications)
+            self.theme_check.set_checked(not dark_mode)
         except Exception as e:
             logger.error(f"Ayarlar yüklenirken hata: {e}")
             traceback.print_exc()
