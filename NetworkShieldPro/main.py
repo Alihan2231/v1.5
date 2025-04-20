@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-NetworkShieldPro - ARP Spoofing Tespit ve Koruma Uygulaması
+V-ARP - ARP Spoofing Tespit ve Koruma Uygulaması
 Bu uygulama, ağda meydana gelen ARP spoofing saldırılarını tespit eder.
 
 Özellikler:
@@ -42,16 +42,16 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("networkshieldpro.log", encoding='utf-8'),
+        logging.FileHandler("varp.log", encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
-logger = logging.getLogger("NetworkShieldPro")
+logger = logging.getLogger("V-ARP")
 
 class NetworkShieldProApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("NetworkShieldPro")
+        self.root.title("V-ARP")
         self.root.geometry("1024x700")
         self.root.minsize(800, 600)
         
@@ -126,7 +126,7 @@ class NetworkShieldProApp:
             )
             
             # Sistem tepsisi ikonunu oluştur
-            self.system_tray_icon = Icon("networkshieldpro", image, "NetworkShieldPro", menu)
+            self.system_tray_icon = Icon("varp", image, "V-ARP", menu)
             
             # Arka planda sistem tepsisi ikonunu göster
             threading.Thread(target=self.system_tray_icon.run, daemon=True).start()
@@ -170,7 +170,7 @@ class NetworkShieldProApp:
             self.icon_label.pack(side=tk.LEFT, padx=10)
         
         # Başlık metni
-        self.title_label = tk.Label(self.titlebar, text="NetworkShieldPro - ARP Koruması", 
+        self.title_label = tk.Label(self.titlebar, text="V-ARP - ARP Spoofing Koruması", 
                                   bg=THEME["card_background"], fg=THEME["text_primary"],
                                   font=("Arial", 10, "bold"))
         self.title_label.pack(side=tk.LEFT, pady=5)
