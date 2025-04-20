@@ -34,7 +34,7 @@ from modules.arp_detector import ARPScanner
 from modules.settings import get_setting, set_setting, update_settings, reset_settings
 
 # Loglama
-logger = logging.getLogger("NetworkShieldPro.screens")
+logger = logging.getLogger("V-ARP.screens")
 
 class BaseScreen:
     """Tüm ekranlar için temel sınıf"""
@@ -1503,11 +1503,11 @@ class SettingsScreen(BaseScreen):
         # Ayarları yükle
         self._load_settings()
 
-class SpotifyARPApp:
+class VARPApp:
     """Ana uygulama sınıfı"""
     def __init__(self, root):
         try:
-            logger.info("SpotifyARPApp.__init__ başlatılıyor...")
+            logger.info("VARPApp.__init__ başlatılıyor...")
             self.root = root
         
             try:
@@ -1572,9 +1572,9 @@ class SpotifyARPApp:
             # İlk taramayı başlat
             self.root.after(500, self.scanner.start_scan)
         
-            logger.info("SpotifyARPApp.__init__ tamamlandı")
+            logger.info("VARPApp.__init__ tamamlandı")
         except Exception as e:
-            logger.critical(f"SpotifyARPApp.__init__ içinde kritik hata: {e}")
+            logger.critical(f"VARPApp.__init__ içinde kritik hata: {e}")
             traceback.print_exc()
     
     def _create_layout(self):
@@ -1595,7 +1595,7 @@ class SpotifyARPApp:
         logo_text = tk.Label(logo_frame, text="🛡️", font=("Arial", 32), bg=THEME["sidebar_background"], fg=THEME["primary"])
         logo_text.pack(pady=(10, 0))
         
-        app_title = tk.Label(logo_frame, text="NetworkShieldPro", font=("Arial", 16, "bold"), 
+        app_title = tk.Label(logo_frame, text="V-ARP", font=("Arial", 16, "bold"), 
                            bg=THEME["sidebar_background"], fg=THEME["text_primary"])
         app_title.pack(pady=(5, 20))
         
