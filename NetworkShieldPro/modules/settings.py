@@ -11,7 +11,7 @@ import json
 import logging
 
 # Loglama
-logger = logging.getLogger("NetworkShieldPro.settings")
+logger = logging.getLogger("V-ARP.settings")
 
 # Ayarlar dosyasının yolu
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
