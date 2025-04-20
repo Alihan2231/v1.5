@@ -18,7 +18,7 @@ import logging
 from collections import defaultdict
 
 # Loglama
-logger = logging.getLogger("NetworkShieldPro.arp_detector")
+logger = logging.getLogger("V-ARP.arp_detector")
 
 # MAC adreslerini düzgün formatta gösterme
 def format_mac(mac_bytes):
@@ -255,7 +255,7 @@ class ARPScanner:
         self.periodic_thread = None
         
         # Loglama
-        self.logger = logging.getLogger("NetworkShieldPro.ARPScanner")
+        self.logger = logging.getLogger("V-ARP.ARPScanner")
         
         # Ayarlardan tarama aralığını yüklemeyi dene
         try:
