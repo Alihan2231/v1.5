@@ -1299,11 +1299,9 @@ class SettingsScreen(BaseScreen):
                               fg=THEME["text_primary"])
         general_title.place(x=20, y=20)
         
-        # Ayarlar içeriği
+        # Ayarlar içeriği - sabit genişlik kullan, winfo_width() değeri başlangıçta 1 olabilir
         settings_frame = tk.Frame(self.general_card, bg=THEME["card_background"])
-        settings_frame.place(x=20, y=60, 
-                          width=self.general_card.winfo_width()-40, 
-                          height=170)
+        settings_frame.place(x=20, y=60, width=700, height=170)
         
         # Periyodik tarama ayarı
         interval_frame = tk.Frame(settings_frame, bg=THEME["card_background"], height=40)
@@ -1384,11 +1382,9 @@ class SettingsScreen(BaseScreen):
                             fg=THEME["text_primary"])
         about_title.place(x=20, y=20)
         
-        # Uygulama bilgileri
+        # Uygulama bilgileri - sabit genişlik kullan
         about_frame = tk.Frame(self.about_card, bg=THEME["card_background"])
-        about_frame.place(x=20, y=60, 
-                        width=self.about_card.winfo_width()-40, 
-                        height=170)
+        about_frame.place(x=20, y=60, width=700, height=170)
         
         app_name = tk.Label(about_frame, text="NetworkShieldPro", 
                         font=("Arial", 16, "bold"), bg=THEME["card_background"], 
@@ -1694,6 +1690,11 @@ class SpotifyARPApp:
             new_screen = self.screens[screen_id]
             
             print(f"Geçiş: {old_screen.__class__.__name__ if old_screen else 'None'} -> {new_screen.__class__.__name__}")  # Debug log
+            
+            # Diğer tüm ekranları gizle
+            for s_id, screen in self.screens.items():
+                if s_id != screen_id and hasattr(screen, 'frame'):
+                    screen.frame.place_forget()
             
             # Animasyonlu geçiş
             if old_screen:
