@@ -1,202 +1,260 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-ARP Spoofing Tespit Aracı - Spotify UI Versiyonu
-Bu araç, ağda olası ARP spoofing saldırılarını tespit etmek için gerekli tüm fonksiyonları ve 
-tkinter tabanlı Spotify tarzında bir grafik arayüz içerir.
 
-Versiyon: 2.0 - Windows Uyumlu
+"""
+NetworkShieldPro - ARP Spoofing Tespit ve Koruma Uygulaması
+Bu uygulama, ağda meydana gelen ARP spoofing saldırılarını tespit eder.
+
+Özellikler:
+- Ağ üzerinde ARP paketlerini izleme
+- Şüpheli ARP hareketlerini tespit etme
+- Periyodik tarama özelliği
+- Sistem tepsisi desteği
+- Türkçe arayüz
 """
 
 import os
 import sys
 import tkinter as tk
-import traceback
 from tkinter import messagebox
+import threading
+import traceback
+import logging
+import json
+import atexit
 
-# Debug için
-print("Program başlatılıyor...")
-
-# Global değişkenler
-root = None
-app = None
-icon = None
-HAS_PYSTRAY = False
-
-# Pystray için gerekli modüller
+# Pystray için PIL kütüphanesini import et
 try:
     import PIL.Image
-    import pystray
-    HAS_PYSTRAY = True
-    print("Pystray başarıyla import edildi.")
+    from pystray import Icon, Menu, MenuItem
+    SYSTEM_TRAY_AVAILABLE = True
 except ImportError:
-    HAS_PYSTRAY = False
-    print("Uyarı: pystray veya PIL modülü bulunamadı. Sistem tepsisi özellikleri devre dışı.")
+    SYSTEM_TRAY_AVAILABLE = False
+    print("Sistem tepsisi desteği için PIL ve pystray kütüphaneleri gereklidir.")
 
-# Diğer modüller
-import socket
-import re
-import threading
-import time
-import subprocess
-import logging
-from collections import defaultdict
+# Modüller için path ayarlaması
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
-# Debug modu
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+# Loglama konfigürasyonu
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("networkshieldpro.log", encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("NetworkShieldPro")
 
-def create_system_tray():
-    """Sistem tepsisi ikonu oluşturur"""
-    print("Sistem tepsisi oluşturuluyor...")
-    if not HAS_PYSTRAY:
-        print("Pystray yok, sistem tepsisi oluşturulamıyor.")
-        return
+class NetworkShieldProApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("NetworkShieldPro - ARP Koruması")
+        self.root.geometry("1024x700")
+        self.root.minsize(800, 600)
         
-    global icon, root, app
-    
-    # Logo için PIL görüntüsü oluştur
-    try:
-        image_path = os.path.join(os.path.dirname(__file__), "assets", "shield.png")
-        if os.path.exists(image_path):
-            print(f"Logo bulundu: {image_path}")
-            image = PIL.Image.open(image_path)
-        else:
-            print("Logo bulunamadı, basit bir görüntü oluşturuluyor.")
-            # Basit bir siyah kare oluştur
-            image = PIL.Image.new('RGB', (16, 16), color = (0, 0, 0))
-    except Exception as e:
-        print(f"Logo yüklenirken hata: {e}")
-        # Hata durumunda basit bir görüntü oluştur
-        image = PIL.Image.new('RGB', (16, 16), color = (0, 0, 0))
-    
-    # Menü işlevleri
-    def show_window(icon, item):
-        print("Pencereyi göster komutu alındı.")
-        icon.stop()  # İkonu durdur
-        root.after(0, root.deiconify)  # Ana pencereyi göster
-    
-    def exit_app(icon, item):
-        print("Tamamen kapat komutu alındı.")
-        # Periyodik taramayı durdur
-        if hasattr(app, 'scanner'):
-            app.scanner.stop_periodic_scan()
-        icon.stop()  # İkonu durdur
-        root.after(0, root.destroy)  # Uygulamayı tamamen kapat
-    
-    # Menü oluştur
-    print("Sistem tepsisi menüsü oluşturuluyor...")
-    menu = pystray.Menu(
-        pystray.MenuItem("ARP Tarama Aracını Göster", show_window),
-        pystray.MenuItem("Tamamen Kapat", exit_app)
-    )
-    
-    # İkonu oluştur ve başlat
-    print("Sistem tepsisi ikonu oluşturuluyor...")
-    icon = pystray.Icon("arp_shield", image, "ARP Tarama Aracı (Arka planda çalışıyor)", menu)
-    
-    # İkonu ayrı bir thread'de başlat
-    print("Sistem tepsisi ikonu thread'de başlatılıyor...")
-    threading.Thread(target=icon.run, daemon=True).start()
-
-def start_desktop_app():
-    """Desktop uygulamasını başlatır"""
-    try:
-        print("Tkinter UI başlatılıyor...")
+        # Ana pencere kapatma olayını yakala
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         
-        global root, app, icon
+        # Sistem tepsisi ikonu
+        self.system_tray_icon = None
+        self.app_visible = True
         
-        # UI modüllerini import etmeye çalışalım
         try:
-            from ui.screens import SpotifyARPApp
-            print("SpotifyARPApp başarıyla import edildi.")
-        except Exception as e:
-            print(f"SpotifyARPApp import edilirken hata: {e}")
-            traceback.print_exc()
-            messagebox.showerror("Hata", f"UI modülleri yüklenirken hata:\n{e}")
-            return
-        
-        # Ayarları yüklemeyi dene
-        try:
-            from modules.settings import load_settings, get_setting
-            settings = load_settings()
-            print(f"Ayarlar yüklendi: {settings}")
-        except Exception as e:
-            print(f"Ayarlar yüklenirken hata: {e}")
-            settings = {}  # Boş sözlük
-        
-        # Ana tkinter penceresini oluştur
-        root = tk.Tk()
-        root.title("ARP Spoofing Tespit Aracı")
-        root.geometry("1000x650")
-        root.minsize(800, 600)
-        
-        # Ana uygulama sınıfını oluştur
-        try:
-            print("SpotifyARPApp oluşturuluyor...")
-            app = SpotifyARPApp(root)
-            print("SpotifyARPApp başarıyla oluşturuldu!")
-        except Exception as e:
-            print(f"SpotifyARPApp oluşturulurken hata: {e}")
-            traceback.print_exc()
-            messagebox.showerror("Hata", f"Uygulama başlatılırken hata:\n{e}")
-            return
-        
-        # Eğer periyodik tarama ayarı varsa, başlat
-        try:
-            if settings.get("periodic_scan_active", False):
-                scan_interval = settings.get("scan_interval", 24)
-                print(f"Önceki oturumdan periyodik tarama başlatılıyor... Aralık: {scan_interval}")
-                # UI tam yüklendikten sonra periyodik taramayı başlat
-                root.after(2000, lambda: app.start_periodic_scan(scan_interval))
-        except Exception as e:
-            print(f"Periyodik tarama başlatılırken hata: {e}")
-        
-        # Kapatma işlemi yeniden tanımla
-        def on_close():
-            print("Kapatma isteği alındı.")
-            # Periyodik tarama aktif mi kontrol et
-            periodic_active = False
-            if hasattr(app, 'scanner'):
-                periodic_active = getattr(app.scanner, 'periodic_running', False)
-                print(f"Periyodik tarama aktif: {periodic_active}")
+            from ui.colors import THEME
+            # Pencere rengini ayarla
+            self.root.configure(bg=THEME["background"])
             
-            if periodic_active:
-                # Periyodik tarama aktifse
-                if messagebox.askyesno("Kapat", "Periyodik tarama aktif. Uygulama kapatılsa bile arka planda çalışmaya devam edecektir.\n\nDevam etmek istiyor musunuz?"):
-                    if HAS_PYSTRAY:
-                        print("Pencere gizleniyor ve sistem tepsisine alınıyor.")
-                        root.withdraw()  # Pencereyi gizle
-                        create_system_tray()  # Sistem tepsisi oluştur
-                    else:
-                        # Pystray yoksa, kullanıcıya bilgi ver
-                        print("Pystray yok, uygulama tamamen kapatılıyor.")
-                        messagebox.showinfo("Bilgi", "Sistem tepsisi desteği olmadığı için uygulama tamamen kapatılacak.")
-                        root.destroy()
-            else:
-                # Periyodik tarama aktif değilse normal kapat
-                if messagebox.askyesno("Kapat", "Uygulamayı kapatmak istiyor musunuz?"):
-                    print("Uygulama kapatılıyor.")
-                    root.destroy()
+            # Uygulamayı başlat
+            from ui.screens import SpotifyARPApp
+            self.app = SpotifyARPApp(self.root)
+            
+            # Sistem tepsisi ikonunu oluştur
+            if SYSTEM_TRAY_AVAILABLE:
+                self.setup_system_tray()
+                
+            # Auto tarama ayarını kontrol et
+            self.check_auto_scan_setting()
+                
+        except Exception as e:
+            logger.error(f"Uygulama başlatılırken hata: {e}")
+            traceback.print_exc()
+            messagebox.showerror("Başlatma Hatası", 
+                f"Uygulama başlatılırken bir hata oluştu:\n{str(e)}")
+    
+    def setup_system_tray(self):
+        """Sistem tepsisi ikonunu hazırlar"""
+        try:
+            # SVG ikon dosyası yerine kod ile oluşturulmuş basit bir ikon kullan
+            width = 64
+            height = 64
+            image = PIL.Image.new('RGBA', (width, height), (0, 0, 0, 0))
+            
+            # Kalkan şekli çiz
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(image)
+            
+            # Kalkan şekli (yeşil tonda)
+            shield_color = (0, 180, 120, 255)  # Yeşil tonu
+            draw.polygon([(width//2, 5), (width-5, height//3), 
+                         (width-15, height-10), (width//2, height-5),
+                         (15, height-10), (5, height//3)], 
+                         fill=shield_color)
+            
+            # Kalkan içine kilit ikonu ekle
+            lock_color = (40, 40, 40, 255)  # Koyu gri
+            draw.rectangle([width//3, height//2, 2*width//3, 3*height//4], fill=lock_color)
+            draw.rectangle([width//4, height//3, 3*width//4, height//2], fill=lock_color)
+            
+            # Menü öğelerini oluştur
+            menu = Menu(
+                MenuItem("Göster", self.show_app),
+                MenuItem("Ağı Tara", self.start_scan),
+                MenuItem("Periyodik Tarama", Menu(
+                    MenuItem("Başlat", self.start_periodic_scan, checked=lambda _: self.is_periodic_active()),
+                    MenuItem("Durdur", self.stop_periodic_scan)
+                )),
+                MenuItem("Çıkış", self.quit_app)
+            )
+            
+            # Sistem tepsisi ikonunu oluştur
+            self.system_tray_icon = Icon("networkshieldpro", image, "NetworkShieldPro", menu)
+            
+            # Arka planda sistem tepsisi ikonunu göster
+            threading.Thread(target=self.system_tray_icon.run, daemon=True).start()
+            
+            logger.info("Sistem tepsisi ikonu başarıyla oluşturuldu")
+        except Exception as e:
+            logger.error(f"Sistem tepsisi ikonu oluşturulurken hata: {e}")
+            traceback.print_exc()
+    
+    def is_periodic_active(self):
+        """Periyodik taramanın aktif olup olmadığını kontrol eder"""
+        try:
+            return hasattr(self.app, 'scanner') and self.app.scanner.periodic_running
+        except:
+            return False
+    
+    def show_app(self, icon=None, item=None):
+        """Uygulamayı gösterir"""
+        self.app_visible = True
+        self.root.deiconify()
+        self.root.state('normal')
+        self.root.lift()
+        self.root.focus_force()
+
+    def hide_app(self):
+        """Uygulamayı gizler (sistem tepsisine küçültür)"""
+        self.app_visible = False
+        self.root.withdraw()
+    
+    def start_scan(self, icon=None, item=None):
+        """Manuel tarama başlatır"""
+        try:
+            if hasattr(self.app, 'start_scan'):
+                self.app.start_scan()
+                logger.info("Manuel tarama başlatıldı")
+        except Exception as e:
+            logger.error(f"Tarama başlatılırken hata: {e}")
+    
+    def start_periodic_scan(self, icon=None, item=None):
+        """Periyodik taramayı başlatır"""
+        try:
+            if hasattr(self.app, 'start_periodic_scan'):
+                success = self.app.start_periodic_scan()
+                if success:
+                    logger.info("Periyodik tarama başlatıldı")
+                else:
+                    logger.warning("Periyodik tarama başlatılamadı")
+        except Exception as e:
+            logger.error(f"Periyodik tarama başlatılırken hata: {e}")
+    
+    def stop_periodic_scan(self, icon=None, item=None):
+        """Periyodik taramayı durdurur"""
+        try:
+            if hasattr(self.app, 'stop_periodic_scan'):
+                success = self.app.stop_periodic_scan()
+                if success:
+                    logger.info("Periyodik tarama durduruldu")
+                else:
+                    logger.warning("Periyodik tarama durdurulamadı")
+        except Exception as e:
+            logger.error(f"Periyodik tarama durdurulurken hata: {e}")
+    
+    def check_auto_scan_setting(self):
+        """Auto scan ayarını kontrol eder ve gerekirse otomatik başlatır"""
+        try:
+            from modules.settings import get_setting
+            auto_scan = get_setting("auto_scan", False)
+            
+            if auto_scan and hasattr(self.app, 'start_periodic_scan'):
+                logger.info("Otomatik tarama ayarı aktif, periyodik tarama başlatılıyor")
+                self.app.start_periodic_scan()
+        except Exception as e:
+            logger.error(f"Auto scan ayarı kontrol edilirken hata: {e}")
+    
+    def quit_app(self, icon=None, item=None):
+        """Uygulamadan çıkar"""
+        self.cleanup()
+        if self.system_tray_icon:
+            self.system_tray_icon.stop()
+        self.root.quit()
+        sys.exit(0)
+    
+    def cleanup(self):
+        """Çıkış öncesi temizlik işlemleri"""
+        try:
+            # Tarayıcıyı durdur
+            if hasattr(self.app, 'scanner'):
+                # Periyodik durumu kaydet
+                from modules.settings import set_setting
+                periodic_active = hasattr(self.app.scanner, 'periodic_running') and self.app.scanner.periodic_running
+                set_setting("periodic_scan_active", periodic_active)
+                
+                # Tarayıcıyı durdur
+                if hasattr(self.app.scanner, 'stop') and callable(self.app.scanner.stop):
+                    self.app.scanner.stop()
+                
+                # Periyodik tarayıcıyı durdur
+                if hasattr(self.app.scanner, 'stop_periodic_scan') and callable(self.app.scanner.stop_periodic_scan):
+                    self.app.scanner.stop_periodic_scan()
+            
+            logger.info("Uygulama temizlik işlemleri tamamlandı")
+        except Exception as e:
+            logger.error(f"Temizlik işlemleri sırasında hata: {e}")
+    
+    def on_close(self):
+        """Pencere kapatıldığında çağrılır"""
+        if SYSTEM_TRAY_AVAILABLE and messagebox.askyesno(
+            "Küçült", 
+            "Uygulamayı sistem tepsisine küçültmek ister misiniz?\n\n"
+            "Hayır'ı seçerseniz uygulama tamamen kapatılacaktır."
+        ):
+            self.hide_app()
+        else:
+            self.quit_app()
+
+
+def main():
+    try:
+        # Ana pencereyi oluştur
+        root = tk.Tk()
+        app = NetworkShieldProApp(root)
         
-        # Pencere kapatma olayını yakala
-        root.protocol("WM_DELETE_WINDOW", on_close)
+        # Çıkışta temizlik yap
+        atexit.register(app.cleanup)
         
         # Ana döngüyü başlat
-        print("Tkinter ana döngüsü başlatılıyor...")
         root.mainloop()
-        print("Mainloop'dan çıkıldı.")
-        
     except Exception as e:
-        print(f"Uygulama başlatılırken hata: {e}")
+        logger.critical(f"Kritik hata oluştu: {e}")
         traceback.print_exc()
-        messagebox.showerror("Hata", f"Uygulama başlatılırken hata:\n{e}")
+        messagebox.showerror("Kritik Hata", 
+            f"Uygulama çalışırken kritik bir hata oluştu:\n{str(e)}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    try:
-        print("Ana program başlatılıyor...")
-        start_desktop_app()
-        print("Program sonlandı.")
-    except Exception as e:
-        print(f"Ana programda hata: {e}")
-        traceback.print_exc()
-        input("Devam etmek için Enter tuşuna basın...")
+    main()
